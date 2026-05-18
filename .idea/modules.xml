@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/buckshot/buckshot.iml" filepath="$PROJECT_DIR$/buckshot/buckshot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/buckshot.iml" filepath="$PROJECT_DIR$/buckshot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/buckshot_android.iml" filepath="$PROJECT_DIR$/android/buckshot_android.iml" />
     </modules>
   </component>
 </project>
