@@ -1,4 +1,5 @@
 import 'package:buckshot/widgets/ShotGunBanner.dart';
+import 'package:buckshot/widgets/ShotGunItem.dart';
 import 'package:flutter/material.dart';
 // Ajuste le chemin de l'import selon ton projet :
 import 'package:buckshot/widgets/BarreDeRecherche.dart';
@@ -48,18 +49,31 @@ class MonCatalogueApp extends StatelessWidget {
               const Divider(height: 40),
               
 
-              _sectionTitle('Cartes / Layouts'),
-              _wrapCentred(
-                const ShotgunBanner(
-                  title: 'Fête de la Musique',
-                  description: 'Rejoignez-nous pour une soirée de musique et de danse !',
-                  date: '21/06',
-                  hours: '18h - Minuit',
-                  imageUrl: 'assets/soiree.png', //L'image ne fonctionne pas encore a tous les coups
-                  height: 120.0,
-                  width: 300,
-                ),
+             _sectionTitle('Cartes / Layouts'),
+
+            _wrapCentred(
+              const ShotgunBanner(
+                title: 'Fête de la Musique',
+                description: 'Rejoignez-nous pour une soirée de musique et de danse !',
+                date: '21/06',
+                hours: '18h - Minuit',
+                imageUrl: 'assets/soiree.png',
+                height: 120.0,
+                width: 300,
               ),
+            ),
+
+            _wrapCentred(
+              const ShotgunItem(
+                title: "Soirée fin d'année",
+                description: 'Libérez votre créativité avec nos ateliers de peinture pour tous les âges.',
+                date: '15/07',
+                hours: '10h - 16h',
+                imageUrl: 'assets/soiree.png',
+                height: 160.0,
+                width: 120.0,
+              ),
+            ),
             ],
           ),
         ),
