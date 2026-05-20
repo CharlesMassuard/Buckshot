@@ -12,7 +12,7 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  await seedFirebaseDatabase();
+  //await seedFirebaseDatabase();
 
   runApp(const MyApp());
 }
