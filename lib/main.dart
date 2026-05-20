@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'BuckshotTheme.dart';
 import 'views/home_view.dart';
-import 'views/login_page.dart';
+import 'views/login_view.dart';
 import 'services/seed_database.dart';
 
 void main() async {
