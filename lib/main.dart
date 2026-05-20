@@ -7,10 +7,15 @@ import 'services/seed_database.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await Firebase.initializeApp(
+  
+  try {
+    await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  } catch (e) {
+    debugPrint('Firebase non initialisé (ex: si Anton ance sur Linux desktop XD ): $e');
+  }
+  
 
   //await seedFirebaseDatabase();
 
