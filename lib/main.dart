@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'theme.dart';
+import 'views/home_view.dart';
+import 'services/seed_database.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -6,6 +11,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await seedFirebaseDatabase();
 
   runApp(const MyApp());
 }
