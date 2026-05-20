@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:buckshot/views/login_view.dart';
+import 'package:buckshot/assets/theme.dart';
 
 void main() {
   runApp(const MyApp());
