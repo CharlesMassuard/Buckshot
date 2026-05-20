@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:buckshot/assets/theme.dart';
+import 'package:buckshot/theme.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
