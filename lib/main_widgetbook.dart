@@ -18,17 +18,20 @@ class MonCatalogueApp extends StatelessWidget {
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Catalogue des Composants - Buckshot'),
-          backgroundColor: Colors.red[900],
+          backgroundColor: Colors.green,
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: ListView(
             children: [
 
+
+              
               _sectionTitle('Barre de Recherche'),
               _wrapCentred(
                 const MaBarreDeRecherche(),
               ),
+
 
               const Divider(height: 40),
 
@@ -41,8 +44,10 @@ class MonCatalogueApp extends StatelessWidget {
                 ),
               ),
               
+
               const Divider(height: 40),
               
+
               _sectionTitle('Cartes / Layouts'),
               _wrapCentred(
                 const ShotgunBanner(
@@ -50,8 +55,8 @@ class MonCatalogueApp extends StatelessWidget {
                   description: 'Rejoignez-nous pour une soirée de musique et de danse !',
                   date: '21/06',
                   hours: '18h - Minuit',
-                  imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=600',
-                  height: 160.0,
+                  imageUrl: 'assets/soiree.png', //L'image ne fonctionne pas encore a tous les coups
+                  height: 120.0,
                   width: 300,
                 ),
               ),
