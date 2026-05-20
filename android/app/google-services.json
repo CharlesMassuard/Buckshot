@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "443286525719",
+    "project_id": "buckshot-a9242",
+    "storage_bucket": "buckshot-a9242.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:443286525719:android:2e47a17d1ecaf41d3c4952",
+        "android_client_info": {
+          "package_name": "com.shotgun.buckshot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2SxE3dTXQL45N0lcg_9yJxrWrkPU72UI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
