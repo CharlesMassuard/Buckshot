@@ -7,9 +7,10 @@ class ShotgunBanner extends StatelessWidget {
   final String date;
   final String hours;
   final String imageUrl;
-  
+
   final double height;
   final double? width;
+  final VoidCallback? onTap; // Ajout du callback de clic
 
   const ShotgunBanner({
     super.key,
@@ -20,6 +21,7 @@ class ShotgunBanner extends StatelessWidget {
     this.imageUrl = 'assets/evenement.png',
     this.height = 160.0,
     this.width,
+    this.onTap,
   });
 
   @override
@@ -29,21 +31,17 @@ class ShotgunBanner extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: Colors.transparent, 
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(15),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
-        child: Material( // Ajout de Material pour gérer l'effet visuel du clic
+        child: Material(
           color: Colors.transparent,
-          child: InkWell( // Ajout du détecteur de clic
-            onTap: () {
-              // --- NOTRE PETIT PRINT ---
-              print("Le banner de l'événement '$title' a été cliqué !");
-            },
+          child: InkWell(
+            onTap: onTap, // Utilisation du onTap dynamique
             child: Stack(
               children: [
-                // Fond de secours
                 Positioned.fill(
                   child: Container(color: Colors.transparent),
                 ),
@@ -54,7 +52,7 @@ class ShotgunBanner extends StatelessWidget {
                     imageUrl,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) {
-                      return const SizedBox.shrink();
+                      return Container(color: Colors.grey[900]);
                     },
                   ),
                 ),

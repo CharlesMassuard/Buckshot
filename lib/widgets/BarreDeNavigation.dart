@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Représente un item de navigation
 class NavItem {
   final IconData icon;
   final String label;
@@ -13,12 +12,12 @@ class NavItem {
   });
 }
 
-class Barredenaviation extends StatelessWidget {
+class Barredenavigation extends StatelessWidget {
   final int currentIndex;
   final Function(int) onItemSelected;
   final List<NavItem> items;
 
-  const Barredenaviation({
+  const Barredenavigation({
     super.key,
     required this.currentIndex,
     required this.onItemSelected,

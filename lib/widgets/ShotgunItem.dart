@@ -5,11 +5,12 @@ class ShotgunItem extends StatelessWidget {
   final String title;
   final String description;
   final String date;
-  final String hours; 
+  final String hours;
   final String imageUrl;
-  
+
   final double height;
   final double? width;
+  final VoidCallback? onTap; // Ajout du callback de clic
 
   const ShotgunItem({
     super.key,
@@ -18,8 +19,9 @@ class ShotgunItem extends StatelessWidget {
     this.date = '--/--',
     this.hours = '--h--h',
     this.imageUrl = 'assets/evenement.png',
-    this.height = 168.0, 
-    this.width = 118.0,  
+    this.height = 168.0,
+    this.width = 118.0,
+    this.onTap,
   });
 
   @override
@@ -33,7 +35,7 @@ class ShotgunItem extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: Colors.transparent, 
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(15),
       ),
       child: ClipRRect(
@@ -41,12 +43,9 @@ class ShotgunItem extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              print("Le widget de l'événement '$title' a été cliqué !");
-            },
+            onTap: onTap, // Utilisation du onTap dynamique
             child: Stack(
               children: [
-                // Fond de secours
                 Positioned.fill(
                   child: Container(color: Colors.transparent),
                 ),
@@ -75,7 +74,7 @@ class ShotgunItem extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [Colors.transparent, Colors.black],
-                        stops: const [0.0, 0.2],
+                        stops: [0.0, 0.2],
                       ).createShader(bounds);
                     },
                     child: BackdropFilter(
@@ -87,11 +86,11 @@ class ShotgunItem extends StatelessWidget {
                   ),
                 ),
 
-                // 3. LE TITRE (Placé au milieu/bas avec des marges dédiées)
+                // 3. LE TITRE
                 Positioned(
                   left: 6.0,
                   right: 12.0,
-                  bottom: 48.0, // On laisse de la place en dessous pour les infos du bas
+                  bottom: 48.0,
                   child: Text(
                     title,
                     style: const TextStyle(
@@ -105,16 +104,15 @@ class ShotgunItem extends StatelessWidget {
                   ),
                 ),
 
-                // 4. LES INFOS TOUT EN BAS (DATE & HEURES POSITIONNÉES AU PIXEL PRÈS)
+                // 4. LES INFOS TOUT EN BAS
                 Positioned(
-                  left: 4.0,  // Aligné à gauche
-                  right: 8.0, // Aligné à droite
-                  bottom: 4.0, // Descendu très proche du bord inférieur (Ajuste ici si besoin !)
+                  left: 4.0,
+                  right: 8.0,
+                  bottom: 4.0,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // DATE (Bien calée en bas à gauche)
                       Text(
                         date,
                         style: const TextStyle(
@@ -123,8 +121,7 @@ class ShotgunItem extends StatelessWidget {
                           color: Colors.white,
                         ),
                       ),
-                      
-                      // HEURES EMPILÉES (Bien calées en bas à droite)
+
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.end,
