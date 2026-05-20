@@ -6,6 +6,7 @@ import '../widgets/ShotgunItem.dart';
 import '../widgets/BarreDeRecherche.dart';
 import '../widgets/BarreDeNavigation.dart';
 import 'event_detail_view.dart';
+import 'search_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -17,20 +18,22 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   int _currentIndex = 0;
 
-  String _formatDate(Timestamp? timestamp) {
-    if (timestamp == null) return '--/--';
-    return DateFormat('dd/MM').format(timestamp.toDate());
-  }
-
-  String _formatHours(Timestamp? timestamp) {
-    if (timestamp == null) return '--h';
-    return '${DateFormat('HH').format(timestamp.toDate())}h';
-  }
+  final List<Widget> _pages = [
+    const _HomeContent(),
+    const SearchView(),
+    const Center(child: Text('Billets (Bientôt dispo)', style: TextStyle(color: Colors.white))),
+    const Center(child: Text('Profil (Bientôt dispo)', style: TextStyle(color: Colors.white))),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0914),
+      backgroundColor: Theme.of(context).colorScheme.background,
+
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
 
       bottomNavigationBar: Barredenavigation(
         currentIndex: _currentIndex,
@@ -46,83 +49,86 @@ class _HomeViewState extends State<HomeView> {
           NavItem(icon: Icons.account_circle_outlined, label: 'Profil', onTap: () {}),
         ],
       ),
+    );
+  }
+}
 
-      body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('events').snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Center(child: Text('Erreur de chargement...'));
-            }
+class _HomeContent extends StatelessWidget {
+  const _HomeContent();
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF9D4EDD)),
-              );
-            }
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return '--/--';
+    return DateFormat('dd/MM').format(timestamp.toDate());
+  }
 
-            final docs = snapshot.data?.docs ?? [];
+  String _formatHours(Timestamp? timestamp) {
+    if (timestamp == null) return '--h';
+    return '${DateFormat('HH').format(timestamp.toDate())}h';
+  }
 
-            if (docs.isEmpty) {
-              return const Center(child: Text('Aucun événement disponible'));
-            }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
-            final mainEvent = docs.first.data() as Map<String, dynamic>;
+    return SafeArea(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('events').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) return const Center(child: Text('Erreur...'));
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+          }
 
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) return const Center(child: Text('Aucun événement'));
 
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
-                    child: BarreDeRecherche(),
-                  ),
+          final mainEvent = docs.first.data() as Map<String, dynamic>;
 
-                  _buildSectionTitle('Dernier shotgun en cours'),
-                  ShotgunBanner(
-                    title: mainEvent['nom'] ?? 'Événement',
-                    description: mainEvent['description'] ?? '',
-                    date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
-                    hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
-                    imageUrl: 'assets/soiree.png',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EventDetailView(eventData: mainEvent),
-                        ),
-                      );
-                    },
-                  ),
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle(context, 'Dernier shotgun en cours'),
+                ShotgunBanner(
+                  title: mainEvent['nom'] ?? 'Événement',
+                  description: mainEvent['description'] ?? '',
+                  date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
+                  hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
+                  imageUrl: 'assets/soiree.png',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => EventDetailView(eventData: mainEvent)),
+                    );
+                  },
+                ),
 
-                  _buildSectionTitle('Vos inscriptions'),
-                  _buildHorizontalEventList(docs),
+                _buildSectionTitle(context, 'Vos inscriptions'),
+                _buildHorizontalEventList(docs),
 
-                  _buildSectionTitle('En tête d’affiche'),
-                  _buildHorizontalEventList(docs),
+                _buildSectionTitle(context, 'En tête d’affiche'),
+                _buildHorizontalEventList(docs),
 
-                  _buildSectionTitle('Nouveautés'),
-                  _buildHorizontalEventList(docs),
+                _buildSectionTitle(context, 'Nouveautés'),
+                _buildHorizontalEventList(docs),
 
-                  const SizedBox(height: 24),
-                ],
-              ),
-            );
-          },
-        ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 16.0, top: 16.0, bottom: 8.0),
       child: Text(
         title,
-        style: const TextStyle(
-          color: Color(0xFFFF007F),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.secondary,
           fontSize: 22,
           fontWeight: FontWeight.bold,
           letterSpacing: 0.5,
@@ -150,9 +156,7 @@ class _HomeViewState extends State<HomeView> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => EventDetailView(eventData: event),
-                ),
+                MaterialPageRoute(builder: (context) => EventDetailView(eventData: event)),
               );
             },
           );
