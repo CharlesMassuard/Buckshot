@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 
 class ShotgunBanner extends StatelessWidget {
@@ -7,9 +8,8 @@ class ShotgunBanner extends StatelessWidget {
   final String hours;
   final String imageUrl;
   
-  // Nouveaux paramètres pour contrôler la taille
   final double height;
-  final double? width; // Null par défaut pour qu'elle prenne toute la largeur disponible (double.infinity)
+  final double? width;
 
   const ShotgunBanner({
     super.key,
@@ -17,79 +17,126 @@ class ShotgunBanner extends StatelessWidget {
     this.description = 'Aucune description disponible pour le moment.',
     this.date = '--/--',
     this.hours = '--h--h',
-    this.imageUrl = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30',
-    this.height = 160.0, // Hauteur par défaut de ta maquette
-    this.width,          // Optionnel, prend tout l'espace si non précisé
+    this.imageUrl = 'assets/evenement.png',
+    this.height = 160.0,
+    this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(16.0),
-      height: height, // Applique la hauteur paramétrable
-      width: width,   // Applique la largeur paramétrable
+      height: height,
+      width: width,
       decoration: BoxDecoration(
-        color: Colors.red,
+        // On enlève la couleur rouge d'ici pour éviter qu'elle ne bave sur les bords flous
+        color: Colors.transparent, 
         borderRadius: BorderRadius.circular(15),
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.4),
-            BlendMode.darken,
-          ),
-        ),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15), // Mêmes coins arrondis
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            stops: const [0.5, 1.0], // Le dégradé commence au milieu
-            colors: [
-              Colors.transparent,
-              Colors.black.withOpacity(0.8), // Noir semi-transparent en bas
-            ],
-          ),
-        ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Stack(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            // --- MODIFICATION 2 ---
+            // On place le fond rouge de secours ici, tout au fond du Stack
+            Positioned.fill(
+              child: Container(color: Colors.transparent), // Couleur de secours
+            ),
+
+            // 1. L'IMAGE DE FOND (NETTE)
+            Positioned.fill(
+              child: Image.asset(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+
+            // 2. LA ZONE DE FLOU PROGRESSIVE
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: height * 0.6,
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) {
+                  return LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: const [
+                      Colors.transparent,
+                      Colors.black,
+                    ],
+                    stops: const [0.0, 0.2],
+                  ).createShader(bounds);
+                },
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.7),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(fontSize: 11, color: Colors.grey[300]),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+
+            // 3. LE CONTENU (TEXTES)
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                top: 16.0,
+                bottom: 10.0,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          description,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[200]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        date,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      Text(
+                        hours,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[200]),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(date, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                  Text(hours, style: TextStyle(fontSize: 12, color: Colors.grey[300])),
-                ],
-              ),
-            ],
-          ),
+          ],
         ),
-      )
+      ),
     );
   }
 }
