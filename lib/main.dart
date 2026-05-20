@@ -8,11 +8,14 @@ import 'services/seed_database.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  await seedFirebaseDatabase();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await seedFirebaseDatabase();
+  } catch (e) {
+    debugPrint("Problème de connexion à FireBase.");
+  }
 
   runApp(const MyApp());
 }
