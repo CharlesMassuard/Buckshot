@@ -32,7 +32,7 @@ Widget build(BuildContext context) {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Connexion',
+              'Connectez-vous !',
               style: TextStyle(
                 color: colors.onBackground,
                 fontSize: 28,
