@@ -55,7 +55,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 label: 'Email',
                 controller: _emailController,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 32),
 
               // Champ mot de passe
               ChampsTextForm(
@@ -63,14 +63,15 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _passwordController,
                 obscureText: true,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
+              //Confirmation de mot de passse 
               ChampsTextForm(
                 label: 'Confirmer votre mot de passe',
                 controller: _confirmedPasswordController,
                 obscureText: true,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
               // Bouton d'inscription
               SizedBox(
