@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/ShotgunBanner.dart';
@@ -7,6 +8,7 @@ import '../widgets/BarreDeRecherche.dart';
 import '../widgets/BarreDeNavigation.dart';
 import 'event_detail_view.dart';
 import 'search_view.dart';
+import 'profile_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -18,41 +20,97 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    const _HomeContent(),
-    const SearchView(),
-    const Center(child: Text('Billets (Bientôt dispo)', style: TextStyle(color: Colors.white))),
-    const Center(child: Text('Profil (Bientôt dispo)', style: TextStyle(color: Colors.white))),
+  // 1. Liste complète de toutes les vues possibles de l'application
+  final List<Widget> _allPages = [
+    const _HomeContent(),                                                                             // Index 0
+    const SearchView(),                                                                               // Index 1
+    const Center(child: Text('Scanner QR', style: TextStyle(color: Colors.white))),                   // Index 2
+    const Center(child: Text('Billets (Bientôt dispo)', style: TextStyle(color: Colors.white))),      // Index 3
+    const ProfileView(),                                                                              // Index 4
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+    final user = FirebaseAuth.instance.currentUser;
 
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+    return StreamBuilder<DocumentSnapshot>(
+      // Écoute en temps réel les changements de rôle dans Firestore
+      stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+      builder: (context, snapshot) {
 
-      bottomNavigationBar: BarreDeNavigation(
-        currentIndex: _currentIndex,
-        onItemSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        items: [
+        // Rôle par défaut si le chargement n'est pas fini ou s'il y a une erreur
+        String role = 'USER';
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final userData = snapshot.data!.data() as Map<String, dynamic>?;
+          role = userData?['role'] ?? 'USER';
+        }
+
+        // Condition stricte pour l'affichage du scanner au milieu
+        final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
+
+        // 2. Construction dynamique de la liste des pages affichées
+        List<Widget> activePages = [
+          _allPages[0], // Accueil
+          _allPages[1], // Recherche
+        ];
+
+        if (showScanner) {
+          activePages.add(_allPages[2]); // Injecte la vue Scan au milieu
+        }
+
+        activePages.addAll([
+          _allPages[3], // Billets
+          _allPages[4], // Profil
+        ]);
+
+        // Sûreté : Si le rôle change subitement et réduit le nombre d'onglets,
+        // on évite un crash lié à un index hors-limite.
+        if (_currentIndex >= activePages.length) {
+          _currentIndex = activePages.length - 1;
+        }
+
+        // 3. Construction dynamique des boutons de la barre de navigation
+        List<NavItem> navItems = [
           NavItem(icon: Icons.home_outlined, label: 'Accueil', onTap: () {}),
           NavItem(icon: Icons.search, label: 'Recherche', onTap: () {}),
+        ];
+
+        if (showScanner) {
+          navItems.add(
+            NavItem(icon: Icons.qr_code_scanner, label: 'Scanner', onTap: () {}),
+          );
+        }
+
+        navItems.addAll([
           NavItem(icon: Icons.confirmation_number_outlined, label: 'Billets', onTap: () {}),
           NavItem(icon: Icons.account_circle_outlined, label: 'Profil', onTap: () {}),
-        ],
-      ),
+        ]);
+
+        return Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.background,
+
+          // Utilisation de l'IndexedStack ajustée à notre liste dynamique de pages
+          body: IndexedStack(
+            index: _currentIndex,
+            children: activePages,
+          ),
+
+          bottomNavigationBar: BarreDeNavigation(
+            currentIndex: _currentIndex,
+            onItemSelected: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            items: navItems,
+          ),
+        );
+      },
     );
   }
 }
 
+// Le reste de ton widget _HomeContent (sans aucun changement requis)
 class _HomeContent extends StatelessWidget {
   const _HomeContent();
 
