@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // Obligatoire pour utiliser ImageFilter
+import 'package:buckshot/BuckshotTheme.dart';
 
 class NavItem {
   final IconData icon;
@@ -26,29 +28,26 @@ class BarreDeNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
+    return ClipRect( // Empêche le flou de déborder
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0), // Intensité du flou en arrière-plan
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: const BoxDecoration(
+            color: Colors.transparent, // Transparence totale !
+            // J'ai retiré le BoxShadow pour éviter d'avoir une ligne noire ou grise sous le flou
           ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: List.generate(
-            items.length,
-            (index) => _buildNavItem(
-              index: index,
-              item: items[index],
+          child: SafeArea(
+            top: false,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(
+                items.length,
+                (index) => _buildNavItem(
+                  index: index,
+                  item: items[index],
+                ),
+              ),
             ),
           ),
         ),
@@ -62,24 +61,21 @@ class BarreDeNavigation extends StatelessWidget {
   }) {
     final isSelected = currentIndex == index;
 
-    final activeColor = Colors.white;
-    final inactiveColor = Colors.grey[600];
+    final activeColor = BuckshotTheme.navigationBarItemColorActive;
+    final inactiveColor = BuckshotTheme.navigationBarItemColorInactive;
 
     return Expanded(
       child: InkWell(
         onTap: () {
           onItemSelected(index);
-
-          // Action personnalisée
           item.onTap();
         },
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
-        child: 
-          Icon(
-            item.icon,
-            color: isSelected ? activeColor : inactiveColor,
-            size: 36,
+        child: Icon(
+          item.icon,
+          color: isSelected ? activeColor : inactiveColor,
+          size: 36,
         ),
       ),
     );
