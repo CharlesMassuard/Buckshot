@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
+import 'register_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -12,6 +12,7 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
   bool _isPasswordObscured = true;
 
@@ -28,30 +29,18 @@ class _LoginViewState extends State<LoginView> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Remplis les champs, t'as cru que j'allais deviner ? 🧐"),
-        ),
+        const SnackBar(content: Text("Remplis les champs, t'as cru que j'allais deviner ? 🧐")),
       );
       return;
     }
 
     setState(() => _isLoading = true);
-
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = "Identifiants invalides ou erreur réseau... 🌐";
-      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
-        errorMessage = "T'es qui toi ? Utilisateur inconnu ou infos erronées. 🕵️";
-      } else if (e.code == 'wrong-password') {
-        errorMessage = "Mot de passe foiré. Respire et réessaie. 🔑";
-      } else if (e.code == 'invalid-email') {
-        errorMessage = "C'est pas un email valide ça, chef. 📧";
+      await _authService.signInWithEmailAndPassword(email, password);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -59,51 +48,42 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0914),
+      backgroundColor: colors.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
                     children: [
                       const SizedBox(height: 40),
-
-                      Image.asset(
-                        'assets/BuckshotLogoLong.png',
-                        height: 50,
-                        fit: BoxFit.contain,
-                      ),
-
+                      Image.asset('assets/BuckshotLogoLong.png', height: 50, fit: BoxFit.contain),
                       const SizedBox(height: 40),
-
                       Text(
                         'Connectez-vous !',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.jura(
-                          color: const Color(0xFFFF007F),
-                          fontSize: 30,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          color: colors.secondary,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.5,
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF141026),
+                          color: colors.surface,
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF9D4EDD).withOpacity(0.4),
+                              color: colors.primary.withOpacity(0.4),
                               blurRadius: 25,
                               spreadRadius: 2,
                             ),
@@ -111,152 +91,55 @@ class _LoginViewState extends State<LoginView> {
                         ),
                         child: Column(
                           children: [
-                            BuckshotInputField(
-                              controller: _emailController,
-                              hintText: 'Adresse mail',
-                            ),
+                            BuckshotInputField(controller: _emailController, hintText: 'Adresse mail'),
                             const SizedBox(height: 16),
-
                             BuckshotInputField(
                               controller: _passwordController,
                               hintText: 'Mot de passe',
                               isPassword: true,
                               isObscured: _isPasswordObscured,
-                              onToggleObscure: () {
-                                setState(() {
-                                  _isPasswordObscured = !_isPasswordObscured;
-                                });
-                              },
+                              onToggleObscure: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
                             ),
-
                             Align(
                               alignment: Alignment.centerLeft,
                               child: TextButton(
                                 onPressed: () {},
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                ),
                                 child: Text(
                                   'Mot de passe oublié ?',
-                                  style: GoogleFonts.jura(
+                                  style: theme.textTheme.bodyMedium?.copyWith(
                                     color: Colors.grey[500],
-                                    fontSize: 14,
                                     decoration: TextDecoration.underline,
                                   ),
                                 ),
                               ),
                             ),
-
                             const SizedBox(height: 24),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 55,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF9D4EDD),
-                                  foregroundColor: Colors.white,
-                                  elevation: 6,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onPressed: _isLoading ? null : _signIn,
-                                child: _isLoading
-                                    ? const CircularProgressIndicator(color: Colors.white)
-                                    : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.person_outline, size: 28),
-                                    const SizedBox(width: 14),
-                                    Text(
-                                      'Se connecter',
-                                      style: GoogleFonts.jura(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            _buildButton(
+                              context: context,
+                              label: 'Se connecter',
+                              icon: Icons.person_outline,
+                              onPressed: _isLoading ? null : _signIn,
+                              isLoading: _isLoading,
                             ),
-
                             const SizedBox(height: 20),
-
-                            Row(
-                              children: [
-                                Expanded(child: Divider(color: Colors.grey[800], thickness: 1)),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                  child: Text(
-                                    'OU',
-                                    style: GoogleFonts.jura(
-                                      color: Colors.grey[700],
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(child: Divider(color: Colors.grey[800], thickness: 1)),
-                              ],
-                            ),
-
+                            _buildDivider(theme),
                             const SizedBox(height: 20),
-
-                            SizedBox(
-                              width: double.infinity,
-                              height: 55,
-                              child: OutlinedButton(
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Color(0xFFFF007F), width: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onPressed: () {},
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.person_add_outlined, color: Color(0xFFFF007F), size: 28),
-                                    const SizedBox(width: 14),
-                                    Text(
-                                      'Créer mon compte',
-                                      style: GoogleFonts.jura(
-                                        color: const Color(0xFFFF007F),
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            _buildOutlinedButton(
+                              context: context,
+                              label: 'Créer mon compte',
+                              icon: Icons.person_add_outlined,
+                              onPressed: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const RegisterPage()),
+                                );
+                              },
                             ),
                           ],
                         ),
                       ),
-
                       const Spacer(),
-
-                      Text.rich(
-                        TextSpan(
-                          text: 'En vous connectant, vous acceptez nos ',
-                          style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 13),
-                          children: const [
-                            TextSpan(
-                              text: 'mentions légales',
-                              style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
-                            ),
-                            TextSpan(text: ' et notre '),
-                            TextSpan(
-                              text: 'politique de confidentialité',
-                              style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
-                            ),
-                            TextSpan(text: '.'),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      _buildFooter(theme),
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -268,6 +151,80 @@ class _LoginViewState extends State<LoginView> {
       ),
     );
   }
+
+  Widget _buildButton({required BuildContext context, required String label, required IconData icon, required VoidCallback? onPressed, bool isLoading = false}) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: ElevatedButton(
+        style: theme.elevatedButtonTheme.style,
+        onPressed: onPressed,
+        child: isLoading
+            ? const CircularProgressIndicator(color: Colors.white)
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 28),
+                  const SizedBox(width: 14),
+                  Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildOutlinedButton({required BuildContext context, required String label, required IconData icon, required VoidCallback onPressed}) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    return SizedBox(
+      width: double.infinity,
+      height: 55,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colors.secondary, width: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        onPressed: onPressed,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: colors.secondary, size: 28),
+            const SizedBox(width: 14),
+            Text(label, style: theme.textTheme.bodyLarge?.copyWith(color: colors.secondary, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider(ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey[800])),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text('OU', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[700], fontWeight: FontWeight.bold)),
+        ),
+        Expanded(child: Divider(color: Colors.grey[800])),
+      ],
+    );
+  }
+
+  Widget _buildFooter(ThemeData theme) {
+    return Text.rich(
+      TextSpan(
+        text: 'En vous connectant, vous acceptez nos ',
+        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[400]),
+        children: const [
+          TextSpan(text: 'mentions légales', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
+          TextSpan(text: ' et notre '),
+          TextSpan(text: 'politique de confidentialité', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
+        ],
+      ),
+      textAlign: TextAlign.center,
+    );
+  }
 }
 
 class BuckshotInputField extends StatelessWidget {
@@ -277,40 +234,23 @@ class BuckshotInputField extends StatelessWidget {
   final bool isObscured;
   final VoidCallback? onToggleObscure;
 
-  const BuckshotInputField({
-    super.key,
-    required this.controller,
-    required this.hintText,
-    this.isPassword = false,
-    this.isObscured = false,
-    this.onToggleObscure,
-  });
+  const BuckshotInputField({super.key, required this.controller, required this.hintText, this.isPassword = false, this.isObscured = false, this.onToggleObscure});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return TextField(
       controller: controller,
       obscureText: isPassword ? isObscured : false,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         filled: true,
-        fillColor: const Color(0xFF1B162E),
+        fillColor: theme.colorScheme.surfaceVariant,
         hintText: hintText,
-        hintStyle: GoogleFonts.jura(color: Colors.grey[600], fontSize: 16),
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
         contentPadding: const EdgeInsets.all(18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-        suffixIcon: isPassword
-            ? IconButton(
-          icon: Icon(
-            isObscured ? Icons.visibility_off : Icons.visibility,
-            color: Colors.grey[600],
-          ),
-          onPressed: onToggleObscure,
-        )
-            : null,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        suffixIcon: isPassword ? IconButton(icon: Icon(isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]), onPressed: onToggleObscure) : null,
       ),
     );
   }
