@@ -34,4 +34,6 @@ class BuckshotTheme {
   );
 
   static const Color successColor = Color(0xFF39FF14);
+  static const Color navigationBarItemColorActive = Color(0xFF8A2BE2);
+  static const Color navigationBarItemColorInactive = Color(0xFFffffff);
 }
