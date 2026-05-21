@@ -35,7 +35,7 @@ class _HomeViewState extends State<HomeView> {
         children: _pages,
       ),
 
-      bottomNavigationBar: Barredenavigation(
+      bottomNavigationBar: BarreDeNavigation(
         currentIndex: _currentIndex,
         onItemSelected: (index) {
           setState(() {
