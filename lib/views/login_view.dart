@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:buckshot/widgets/ChampsTextForm.dart'; // adapte le chemin
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -11,6 +12,8 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  bool _isPasswordObscured = true;
 
   @override
   void dispose() {
@@ -19,61 +22,295 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
+  void _signIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Remplis les champs, t'as cru que j'allais deviner ? 🧐"),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = "Identifiants invalides ou erreur réseau... 🌐";
+      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+        errorMessage = "T'es qui toi ? Utilisateur inconnu ou infos erronées. 🕵️";
+      } else if (e.code == 'wrong-password') {
+        errorMessage = "Mot de passe foiré. Respire et réessaie. 🔑";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "C'est pas un email valide ça, chef. 📧";
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: const Color(0xFF0B0914),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Connectez-vous !',
-                style: TextStyle(
-                  color: colors.onBackground,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
-              ),
-              const SizedBox(height: 32),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
 
-              // Champ email
-              ChampsTextForm(
-                label: 'Email',
-                controller: _emailController,
-              ),
-              const SizedBox(height: 16),
+                      Image.asset(
+                        'assets/BuckshotLogoLong.png',
+                        height: 50,
+                        fit: BoxFit.contain,
+                      ),
 
-              // Champ mot de passe
-              ChampsTextForm(
-                label: 'Mot de passe',
-                controller: _passwordController,
-                obscureText: true,
-              ),
-              const SizedBox(height: 32),
+                      const SizedBox(height: 40),
 
-              // Bouton de connexion
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
-                    foregroundColor: colors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                      Text(
+                        'Connectez-vous !',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.jura(
+                          color: const Color(0xFFFF007F),
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF141026),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF9D4EDD).withOpacity(0.4),
+                              blurRadius: 25,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            BuckshotInputField(
+                              controller: _emailController,
+                              hintText: 'Adresse mail',
+                            ),
+                            const SizedBox(height: 16),
+
+                            BuckshotInputField(
+                              controller: _passwordController,
+                              hintText: 'Mot de passe',
+                              isPassword: true,
+                              isObscured: _isPasswordObscured,
+                              onToggleObscure: () {
+                                setState(() {
+                                  _isPasswordObscured = !_isPasswordObscured;
+                                });
+                              },
+                            ),
+
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: TextButton(
+                                onPressed: () {},
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                ),
+                                child: Text(
+                                  'Mot de passe oublié ?',
+                                  style: GoogleFonts.jura(
+                                    color: Colors.grey[500],
+                                    fontSize: 14,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF9D4EDD),
+                                  foregroundColor: Colors.white,
+                                  elevation: 6,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _isLoading ? null : _signIn,
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.person_outline, size: 28),
+                                    const SizedBox(width: 14),
+                                    Text(
+                                      'Se connecter',
+                                      style: GoogleFonts.jura(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            Row(
+                              children: [
+                                Expanded(child: Divider(color: Colors.grey[800], thickness: 1)),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                  child: Text(
+                                    'OU',
+                                    style: GoogleFonts.jura(
+                                      color: Colors.grey[700],
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(child: Divider(color: Colors.grey[800], thickness: 1)),
+                              ],
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Color(0xFFFF007F), width: 2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () {},
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.person_add_outlined, color: Color(0xFFFF007F), size: 28),
+                                    const SizedBox(width: 14),
+                                    Text(
+                                      'Créer mon compte',
+                                      style: GoogleFonts.jura(
+                                        color: const Color(0xFFFF007F),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      Text.rich(
+                        TextSpan(
+                          text: 'En vous connectant, vous acceptez nos ',
+                          style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 13),
+                          children: const [
+                            TextSpan(
+                              text: 'mentions légales',
+                              style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+                            ),
+                            TextSpan(text: ' et notre '),
+                            TextSpan(
+                              text: 'politique de confidentialité',
+                              style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+                            ),
+                            TextSpan(text: '.'),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  onPressed: () {
-                    // (service auth)
-                  },
-                  child: const Text('Se connecter'),
                 ),
               ),
-            ],
-          ),
+            );
+          },
         ),
+      ),
+    );
+  }
+}
+
+class BuckshotInputField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final bool isPassword;
+  final bool isObscured;
+  final VoidCallback? onToggleObscure;
+
+  const BuckshotInputField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    this.isPassword = false,
+    this.isObscured = false,
+    this.onToggleObscure,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword ? isObscured : false,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color(0xFF1B162E),
+        hintText: hintText,
+        hintStyle: GoogleFonts.jura(color: Colors.grey[600], fontSize: 16),
+        contentPadding: const EdgeInsets.all(18),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+        suffixIcon: isPassword
+            ? IconButton(
+          icon: Icon(
+            isObscured ? Icons.visibility_off : Icons.visibility,
+            color: Colors.grey[600],
+          ),
+          onPressed: onToggleObscure,
+        )
+            : null,
       ),
     );
   }
