@@ -12,12 +12,12 @@ class NavItem {
   });
 }
 
-class Barredenavigation extends StatelessWidget {
+class BarreDeNavigation extends StatelessWidget {
   final int currentIndex;
   final Function(int) onItemSelected;
   final List<NavItem> items;
 
-  const Barredenavigation({
+  const BarreDeNavigation({
     super.key,
     required this.currentIndex,
     required this.onItemSelected,
