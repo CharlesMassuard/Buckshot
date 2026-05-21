@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:buckshot/widgets/ChampsTextForm.dart';
+import '../services/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -15,7 +15,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmedPasswordController = TextEditingController();
   final _lastnameController = TextEditingController();
   final _firstnameController = TextEditingController();
-  final _auth = FirebaseAuth.instance;
+  final _authService = AuthService();
   bool _isLoading = false;
 
   @override
@@ -51,29 +51,10 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Une erreur est survenue lors de l\'inscription';
-      switch (e.code) {
-        case 'email-already-in-use':
-          message = 'Cet email est déjà utilisé par un autre compte';
-          break;
-        case 'invalid-email':
-          message = 'Format de l\'email invalide';
-          break;
-        case 'weak-password':
-          message = 'Le mot de passe est trop faible';
-          break;
-      }
+      await _authService.createUserWithEmailAndPassword(email, password);
+    } catch (errorMessage) {
       if (mounted) {
-        _showSnackBar(message);
-      }
-    } catch (e) {
-      if (mounted) {
-        _showSnackBar('Une erreur inattendue est survenue');
+        _showSnackBar(errorMessage.toString());
       }
     } finally {
       if (mounted) {
@@ -94,13 +75,17 @@ class _RegisterPageState extends State<RegisterPage> {
 
     return Scaffold(
       backgroundColor: colors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: colors.onBackground,
+      ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const SizedBox(height: 64),
               Text(
                 'Créer votre compte !',
                 style: TextStyle(

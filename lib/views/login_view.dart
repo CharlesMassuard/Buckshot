@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
+import 'register_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -12,6 +13,7 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
   bool _isPasswordObscured = true;
 
@@ -38,20 +40,13 @@ class _LoginViewState extends State<LoginView> {
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      String errorMessage = "Identifiants invalides ou erreur réseau... 🌐";
-      if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
-        errorMessage = "T'es qui toi ? Utilisateur inconnu ou infos erronées. 🕵️";
-      } else if (e.code == 'wrong-password') {
-        errorMessage = "Mot de passe foiré. Respire et réessaie. 🔑";
-      } else if (e.code == 'invalid-email') {
-        errorMessage = "C'est pas un email valide ça, chef. 📧";
+      await _authService.signInWithEmailAndPassword(email, password);
+    } catch (errorMessage) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage.toString())),
+        );
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -74,15 +69,12 @@ class _LoginViewState extends State<LoginView> {
                   child: Column(
                     children: [
                       const SizedBox(height: 40),
-
                       Image.asset(
                         'assets/BuckshotLogoLong.png',
                         height: 50,
                         fit: BoxFit.contain,
                       ),
-
                       const SizedBox(height: 40),
-
                       Text(
                         'Connectez-vous !',
                         textAlign: TextAlign.center,
@@ -93,9 +85,7 @@ class _LoginViewState extends State<LoginView> {
                           letterSpacing: 1.5,
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -116,7 +106,6 @@ class _LoginViewState extends State<LoginView> {
                               hintText: 'Adresse mail',
                             ),
                             const SizedBox(height: 16),
-
                             BuckshotInputField(
                               controller: _passwordController,
                               hintText: 'Mot de passe',
@@ -128,7 +117,6 @@ class _LoginViewState extends State<LoginView> {
                                 });
                               },
                             ),
-
                             Align(
                               alignment: Alignment.centerLeft,
                               child: TextButton(
@@ -146,9 +134,7 @@ class _LoginViewState extends State<LoginView> {
                                 ),
                               ),
                             ),
-
                             const SizedBox(height: 24),
-
                             SizedBox(
                               width: double.infinity,
                               height: 55,
@@ -165,25 +151,23 @@ class _LoginViewState extends State<LoginView> {
                                 child: _isLoading
                                     ? const CircularProgressIndicator(color: Colors.white)
                                     : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.person_outline, size: 28),
-                                    const SizedBox(width: 14),
-                                    Text(
-                                      'Se connecter',
-                                      style: GoogleFonts.jura(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.person_outline, size: 28),
+                                          const SizedBox(width: 14),
+                                          Text(
+                                            'Se connecter',
+                                            style: GoogleFonts.jura(
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
                                 ),
-                              ),
                             ),
-
                             const SizedBox(height: 20),
-
                             Row(
                               children: [
                                 Expanded(child: Divider(color: Colors.grey[800], thickness: 1)),
@@ -201,9 +185,7 @@ class _LoginViewState extends State<LoginView> {
                                 Expanded(child: Divider(color: Colors.grey[800], thickness: 1)),
                               ],
                             ),
-
                             const SizedBox(height: 20),
-
                             SizedBox(
                               width: double.infinity,
                               height: 55,
@@ -214,7 +196,12 @@ class _LoginViewState extends State<LoginView> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                onPressed: () {},
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const RegisterPage()),
+                                  );
+                                },
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -235,9 +222,7 @@ class _LoginViewState extends State<LoginView> {
                           ],
                         ),
                       ),
-
                       const Spacer(),
-
                       Text.rich(
                         TextSpan(
                           text: 'En vous connectant, vous acceptez nos ',
@@ -304,12 +289,12 @@ class BuckshotInputField extends StatelessWidget {
         ),
         suffixIcon: isPassword
             ? IconButton(
-          icon: Icon(
-            isObscured ? Icons.visibility_off : Icons.visibility,
-            color: Colors.grey[600],
-          ),
-          onPressed: onToggleObscure,
-        )
+                icon: Icon(
+                  isObscured ? Icons.visibility_off : Icons.visibility,
+                  color: Colors.grey[600],
+                ),
+                onPressed: onToggleObscure,
+              )
             : null,
       ),
     );
