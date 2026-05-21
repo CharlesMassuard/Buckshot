@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
-class ShotgunBanner extends StatelessWidget {
+class ShotgunItem extends StatelessWidget {
   final String title;
   final String description;
   final String date;
@@ -12,20 +12,24 @@ class ShotgunBanner extends StatelessWidget {
   final double? width;
   final VoidCallback? onTap; // Ajout du callback de clic
 
-  const ShotgunBanner({
+  const ShotgunItem({
     super.key,
     this.title = 'Événement à venir',
     this.description = 'Aucune description disponible pour le moment.',
     this.date = '--/--',
     this.hours = '--h--h',
     this.imageUrl = 'assets/evenement.png',
-    this.height = 160.0,
-    this.width,
+    this.height = 168.0,
+    this.width = 118.0,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    List<String> hoursSplit = hours.split(' - ');
+    String startHour = hoursSplit.isNotEmpty ? hoursSplit[0] : hours;
+    String endHour = hoursSplit.length > 1 ? hoursSplit[1] : '';
+
     return Container(
       margin: const EdgeInsets.all(16.0),
       height: height,
@@ -46,7 +50,7 @@ class ShotgunBanner extends StatelessWidget {
                   child: Container(color: Colors.transparent),
                 ),
 
-                // 1. L'IMAGE DE FOND (NETTE)
+                // 1. L'IMAGE DE FOND
                 Positioned.fill(
                   child: Image.asset(
                     imageUrl,
@@ -62,18 +66,15 @@ class ShotgunBanner extends StatelessWidget {
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  height: height * 0.6,
+                  height: height * 0.60,
                   child: ShaderMask(
                     blendMode: BlendMode.dstIn,
                     shaderCallback: (bounds) {
-                      return LinearGradient(
+                      return const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: const [
-                          Colors.transparent,
-                          Colors.black,
-                        ],
-                        stops: const [0.0, 0.2],
+                        colors: [Colors.transparent, Colors.black],
+                        stops: [0.0, 0.2],
                       ).createShader(bounds);
                     },
                     child: BackdropFilter(
@@ -85,53 +86,63 @@ class ShotgunBanner extends StatelessWidget {
                   ),
                 ),
 
-                // 3. LE CONTENU (TEXTES)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: 16.0,
-                    right: 16.0,
-                    top: 16.0,
-                    bottom: 10.0,
+                // 3. LE TITRE
+                Positioned(
+                  left: 6.0,
+                  right: 12.0,
+                  bottom: 48.0,
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      height: 1.1,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
+
+                // 4. LES INFOS TOUT EN BAS
+                Positioned(
+                  left: 4.0,
+                  right: 8.0,
+                  bottom: 4.0,
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
+                      Text(
+                        date,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            startHour,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          if (endHour.isNotEmpty)
                             Text(
-                              title,
+                              endHour,
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              description,
-                              style: TextStyle(fontSize: 11, color: Colors.grey[200]),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            date,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                          Text(
-                            hours,
-                            style: TextStyle(fontSize: 12, color: Colors.grey[200]),
-                          ),
                         ],
                       ),
                     ],

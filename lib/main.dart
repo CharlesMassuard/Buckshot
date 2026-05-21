@@ -18,6 +18,7 @@ void main() async {
     debugPrint("Problème de connexion à FireBase.");
   }
 
+
   runApp(const MyApp());
 }
 

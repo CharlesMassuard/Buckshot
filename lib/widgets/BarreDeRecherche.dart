@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class MaBarreDeRecherche extends StatefulWidget {
-  const MaBarreDeRecherche({super.key});
+class BarreDeRecherche extends StatefulWidget {
+  const BarreDeRecherche({super.key});
 
   @override
-  State<MaBarreDeRecherche> createState() => _MaBarreDeRechercheState();
+  State<BarreDeRecherche> createState() => _BarreDeRechercheState();
 }
 
-class _MaBarreDeRechercheState extends State<MaBarreDeRecherche> {
+class _BarreDeRechercheState extends State<BarreDeRecherche> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
