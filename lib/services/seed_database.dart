@@ -7,7 +7,7 @@ Future<void> seedFirebaseDatabase() async {
 
   try {
     // Force la lecture depuis le serveur, jamais depuis le cache local
-    final existingUser = await firestore
+    await firestore
         .collection('users')
         .doc('test_user_jules')
         .get(const GetOptions(source: Source.server));
