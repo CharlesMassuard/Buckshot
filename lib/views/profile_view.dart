@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:buckshot/BuckshotTheme.dart';
+import 'login_view.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -12,13 +13,17 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  final _nameController = TextEditingController();
-  final _orgController = TextEditingController();
-  final _staffOrgController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _currentOrgController = TextEditingController();
 
   final _oldPasswordController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  // Gestion des demandes d'organisation
+  String? _selectedOrgaId;
+  String _selectedRole = 'STAFF';
 
   bool _isOldPasswordObscured = true;
   bool _isNewPasswordObscured = true;
@@ -26,12 +31,13 @@ class _ProfileViewState extends State<ProfileView> {
 
   bool _isUpdatingPassword = false;
   bool _isUpdatingProfile = false;
+  bool _isSendingRequest = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _orgController.dispose();
-    _staffOrgController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _currentOrgController.dispose();
     _oldPasswordController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -40,15 +46,24 @@ class _ProfileViewState extends State<ProfileView> {
 
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginView()),
+            (route) => false,
+      );
+    }
   }
 
   Future<void> _updateProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final newName = _nameController.text.trim();
-    if (newName.isEmpty) {
-      _showSnackBar("Le nom d'utilisateur ne peut pas être vide. 👤");
+    final newFirstName = _firstNameController.text.trim();
+    final newLastName = _lastNameController.text.trim();
+
+    if (newFirstName.isEmpty || newLastName.isEmpty) {
+      _showSnackBar("Le prénom et le nom ne peuvent pas être vides. 👤");
       return;
     }
 
@@ -56,14 +71,169 @@ class _ProfileViewState extends State<ProfileView> {
 
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'nom': newName,
+        'prenom': newFirstName,
+        'nom': newLastName,
       });
       _showSnackBar("Profil mis à jour avec succès ! ✨", isSuccess: true);
     } catch (e) {
-      _showSnackBar("Impossible de mettre à jour le nom : $e");
+      _showSnackBar("Impossible de mettre à jour le profil : $e");
     } finally {
       if (mounted) setState(() => _isUpdatingProfile = false);
     }
+  }
+
+  Future<void> _submitRequest() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _selectedOrgaId == null) {
+      _showSnackBar("Veuillez sélectionner une organisation. 🏢");
+      return;
+    }
+
+    setState(() => _isSendingRequest = true);
+
+    try {
+      final orgaDoc = await FirebaseFirestore.instance.collection('organizers').doc(_selectedOrgaId).get();
+      final orgaName = orgaDoc.data()?['nom'] ?? _selectedOrgaId;
+
+      await FirebaseFirestore.instance.collection('demandes_organisation').doc(user.uid).set({
+        'userId': user.uid,
+        'userNom': "${_firstNameController.text.trim()} ${_lastNameController.text.trim()}",
+        'orgaId': _selectedOrgaId,
+        'orgaNom': orgaName,
+        'roleDemande': _selectedRole,
+        'status': 'EN_ATTENTE',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      _showSnackBar("Demande envoyée avec succès ! 🚀", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("Erreur lors de l'envoi de la demande : $e");
+    } finally {
+      if (mounted) setState(() => _isSendingRequest = false);
+    }
+  }
+
+  Future<void> _cancelRequest() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('demandes_organisation').doc(user.uid).delete();
+      _showSnackBar("Demande annulée.", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("Impossible d'annuler la demande : $e");
+    }
+  }
+
+  Future<void> _handleAcceptRequest(Map<String, dynamic> request) async {
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(request['userId']);
+      batch.update(userDoc, {
+        'organisation': request['orgaId'],
+        'role': request['roleDemande'],
+      });
+
+      final reqDoc = FirebaseFirestore.instance.collection('demandes_organisation').doc(request['userId']);
+      batch.delete(reqDoc);
+
+      await batch.commit();
+      _showSnackBar("Demande acceptée avec succès !", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("Erreur lors de la validation : $e");
+    }
+  }
+
+  Future<void> _handleRejectRequest(String targetUserId) async {
+    try {
+      await FirebaseFirestore.instance.collection('demandes_organisation').doc(targetUserId).update({
+        'status': 'REFUSE',
+      });
+      _showSnackBar("Demande refusée.");
+    } catch (e) {
+      _showSnackBar("Erreur : $e");
+    }
+  }
+
+  Future<void> _leaveOrganisation() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'organisation': '',
+        'role': 'USER',
+      });
+      _showSnackBar("Vous avez quitté l'organisation. Retour au statut standard.", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("Erreur lors de la sortie de l'organisation : $e");
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final passwordCheckController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Text("Suppression définitive", style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Cette action est irréversible. Saisissez votre mot de passe pour confirmer :",
+              style: GoogleFonts.jura(color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordCheckController,
+              obscureText: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                hintText: "Mot de passe",
+                hintStyle: const TextStyle(color: Colors.grey),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text("Annuler", style: GoogleFonts.jura(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () async {
+              final pwd = passwordCheckController.text.trim();
+              if (pwd.isEmpty) return;
+
+              try {
+                AuthCredential credential = EmailAuthProvider.credential(email: user.email!, password: pwd);
+                await user.reauthenticateWithCredential(credential);
+
+                await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+                await FirebaseFirestore.instance.collection('demandes_organisation').doc(user.uid).delete();
+                await user.delete();
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginView()), (route) => false);
+                }
+              } catch (e) {
+                if (context.mounted) Navigator.pop(context);
+                _showSnackBar("Erreur lors de la suppression : ${e.toString()}");
+              }
+            },
+            child: Text("Supprimer", style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _updatePassword() async {
@@ -87,16 +257,11 @@ class _ProfileViewState extends State<ProfileView> {
     setState(() => _isUpdatingPassword = true);
 
     try {
-      AuthCredential credential = EmailAuthProvider.credential(
-        email: user.email!,
-        password: oldPassword,
-      );
-
+      AuthCredential credential = EmailAuthProvider.credential(email: user.email!, password: oldPassword);
       await user.reauthenticateWithCredential(credential);
       await user.updatePassword(newPassword);
 
       _showSnackBar("Mot de passe modifié avec succès ! 🎉", isSuccess: true);
-
       _oldPasswordController.clear();
       _passwordController.clear();
       _confirmPasswordController.clear();
@@ -113,12 +278,9 @@ class _ProfileViewState extends State<ProfileView> {
     final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.jura(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+        content: Text(message, style: GoogleFonts.jura(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: isSuccess ? BuckshotTheme.successColor.withOpacity(0.8) : theme.colorScheme.error,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -146,11 +308,7 @@ class _ProfileViewState extends State<ProfileView> {
         automaticallyImplyLeading: false,
         title: Text(
           'Gestion du compte',
-          style: GoogleFonts.jura(
-            color: theme.colorScheme.secondary,
-            fontWeight: FontWeight.bold,
-            fontSize: 24,
-          ),
+          style: GoogleFonts.jura(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 24),
         ),
         actions: [
           IconButton(
@@ -161,18 +319,25 @@ class _ProfileViewState extends State<ProfileView> {
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
           }
 
-          final userData = snapshot.data?.data() as Map<String, dynamic>?;
+          final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
 
-          if (_nameController.text.isEmpty && userData != null) {
-            _nameController.text = userData['nom'] ?? '';
+          if (_firstNameController.text.isEmpty && userData != null) {
+            _firstNameController.text = userData['prenom'] ?? '';
+          }
+          if (_lastNameController.text.isEmpty && userData != null) {
+            _lastNameController.text = userData['nom'] ?? '';
           }
 
           final role = userData?['role'] ?? 'USER';
+          final currentOrg = userData?['organisation'] ?? '';
+          _currentOrgController.text = currentOrg;
+
+          final bool hasOrganisation = (role == 'ORGANISATEUR' || role == 'STAFF') && currentOrg.isNotEmpty;
           final bool isOrganizer = role == 'ORGANISATEUR';
 
           return SingleChildScrollView(
@@ -180,16 +345,14 @@ class _ProfileViewState extends State<ProfileView> {
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Column(
               children: [
-                // 1. BLOC PROFIL (PSEUDO)
+                // 1. BLOC PROFIL
                 _buildNeonContainer(
                   context: context,
                   child: Column(
                     children: [
-                      _buildTextField(
-                        context: context,
-                        label: "Nom d'utilisateur",
-                        controller: _nameController,
-                      ),
+                      _buildTextField(context: context, label: "Prénom", controller: _firstNameController),
+                      const SizedBox(height: 16),
+                      _buildTextField(context: context, label: "Nom", controller: _lastNameController),
                       const SizedBox(height: 24),
                       _buildSaveButton(
                         context: context,
@@ -209,14 +372,7 @@ class _ProfileViewState extends State<ProfileView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "Changer le mot de passe",
-                          style: GoogleFonts.jura(
-                            color: theme.colorScheme.onSurface,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text("Changer le mot de passe", style: GoogleFonts.jura(color: theme.colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 20),
                         _buildTextField(
                           context: context,
@@ -260,12 +416,8 @@ class _ProfileViewState extends State<ProfileView> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Text(
-                        "Connecté via Google. Gestion du mot de passe indisponible. 🌐",
-                        style: GoogleFonts.jura(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        "Connecté via un fournisseur externe. Gestion du mot de passe indisponible. 🌐",
+                        style: GoogleFonts.jura(color: theme.colorScheme.onSurfaceVariant, fontSize: 14, fontStyle: FontStyle.italic),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -273,44 +425,218 @@ class _ProfileViewState extends State<ProfileView> {
 
                 const SizedBox(height: 24),
 
-                // 3. BLOC ROLE DYNAMIQUE
-                if (!isOrganizer)
-                  _buildNeonContainer(
-                    context: context,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionTitle("Devenir organisateur"),
-                        _buildTextField(context: context, label: "Nom de l'organisation", controller: _orgController),
-                        const SizedBox(height: 16),
-                        Center(child: _buildValiderButton(context: context, onPressed: () {})),
+                // 3. BLOC REQUÊTES D'ORGANISATION
+                _buildNeonContainer(
+                  context: context,
+                  child: hasOrganisation
+                      ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle(isOrganizer ? "Votre Organisation" : "Organisation rattachée"),
+                      const SizedBox(height: 4),
+                      Text("Rôle actuel : $role", style: GoogleFonts.jura(color: theme.colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance.collection('organizers').doc(currentOrg.trim()).get(),
+                        builder: (context, orgSnap) {
+                          String displayName = currentOrg;
+                          if (orgSnap.hasData && orgSnap.data!.exists) {
+                            displayName = (orgSnap.data!.data() as Map<String, dynamic>)['nom'] ?? currentOrg;
+                          }
+                          return _buildTextField(
+                              context: context,
+                              label: "Nom de la structure",
+                              controller: TextEditingController(text: displayName),
+                              readOnly: true
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
 
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20.0),
-                          child: Divider(color: theme.colorScheme.background, thickness: 1),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: theme.colorScheme.error, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: _leaveOrganisation,
+                          child: Text("Quitter l'organisation", style: GoogleFonts.jura(color: theme.colorScheme.error, fontWeight: FontWeight.bold)),
                         ),
+                      ),
 
-                        _buildSectionTitle("Devenir staff"),
-                        _buildTextField(context: context, label: "Nom de l'organisation", controller: _staffOrgController),
-                        const SizedBox(height: 16),
-                        Center(child: _buildValiderButton(context: context, onPressed: () {})),
-                      ],
-                    ),
-                  )
-                else
-                  _buildNeonContainer(
-                    context: context,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionTitle("Demandes d'accès"),
+                      if (isOrganizer) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          child: Divider(color: theme.colorScheme.background, thickness: 5),
+                        ),
+                        _buildSectionTitle("Demandes d'accès reçues"),
                         const SizedBox(height: 8),
-                        _buildRequestItem(context, "Utilisateur 1", "Staff"),
-                        _buildRequestItem(context, "Utilisateur 2", "Organisateur"),
-                        _buildRequestItem(context, "Utilisateur 3", "Organisateur"),
-                      ],
-                    ),
+                        StreamBuilder<QuerySnapshot>(
+                          // On cible bien orgaId pour récupérer les demandes destinées à cette structure
+                          stream: FirebaseFirestore.instance
+                              .collection('demandes_organisation')
+                              .where('orgaId', isEqualTo: currentOrg.trim())
+                              .snapshots(),
+                          builder: (context, reqSnapshot) {
+                            if (!reqSnapshot.hasData) return const LinearProgressIndicator();
+
+                            // Filtrage manuel du statut pour éviter l'obligation d'un index composite complexe
+                            final docs = reqSnapshot.data!.docs.where((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return data['status'] == 'EN_ATTENTE';
+                            }).toList();
+
+                            if (docs.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text("Aucune demande en attente pour votre structure. ☕", style: GoogleFonts.jura(color: Colors.grey, fontSize: 14)),
+                              );
+                            }
+                            return ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: docs.length,
+                              itemBuilder: (context, idx) {
+                                final reqData = docs[idx].data() as Map<String, dynamic>;
+                                return _buildRequestItem(context, reqData);
+                              },
+                            );
+                          },
+                        ),
+                      ]
+                    ],
+                  )
+                      : StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance.collection('demandes_organisation').doc(user?.uid).snapshots(),
+                    builder: (context, requestSnapshot) {
+                      final reqDocExists = requestSnapshot.hasData && requestSnapshot.data!.exists;
+
+                      if (reqDocExists) {
+                        final reqData = requestSnapshot.data!.data() as Map<String, dynamic>;
+                        final String status = reqData['status'] ?? 'EN_ATTENTE';
+                        final String targetRole = reqData['roleDemande'] ?? 'STAFF';
+                        final String targetOrgaName = reqData['orgaNom'] ?? reqData['orgaId'] ?? '';
+
+                        Color statusColor = Colors.orange;
+                        String statusText = "En attente de validation...";
+                        if (status == 'REFUSE') {
+                          statusColor = theme.colorScheme.error;
+                          statusText = "Demande refusée par l'organisation.";
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionTitle("Suivi de votre demande"),
+                            const SizedBox(height: 14),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: statusColor.withOpacity(0.5)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("Structure : $targetOrgaName", style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  Text("Poste demandé : $targetRole", style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 13)),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Icon(status == 'REFUSE' ? Icons.gpp_bad_outlined : Icons.hourglass_empty_rounded, color: statusColor, size: 20),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(statusText, style: GoogleFonts.jura(color: statusColor, fontWeight: FontWeight.bold))),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 45,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
+                                onPressed: _cancelRequest,
+                                child: Text(status == 'REFUSE' ? "Nouvelle demande" : "Annuler la demande", style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance.collection('organizers').snapshots(),
+                        builder: (context, organizersSnapshot) {
+                          if (!organizersSnapshot.hasData) return const LinearProgressIndicator();
+
+                          final orgDocs = organizersSnapshot.data!.docs;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle("Rejoindre une structure"),
+                              const SizedBox(height: 16),
+
+                              DropdownButtonFormField<String>(
+                                dropdownColor: theme.colorScheme.surface,
+                                value: _selectedOrgaId,
+                                isExpanded: true,
+                                style: GoogleFonts.jura(color: Colors.white, fontSize: 16),
+                                decoration: InputDecoration(
+                                  labelText: "Sélectionnez l'organisation",
+                                  labelStyle: GoogleFonts.jura(color: Colors.grey),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceVariant,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                items: orgDocs.map((doc) {
+                                  final data = doc.data() as Map<String, dynamic>;
+                                  return DropdownMenuItem<String>(
+                                    value: doc.id,
+                                    child: Text(data['nom'] ?? doc.id, overflow: TextOverflow.ellipsis),
+                                  );
+                                }).toList(),
+                                onChanged: (val) => setState(() => _selectedOrgaId = val),
+                              ),
+                              const SizedBox(height: 16),
+
+                              DropdownButtonFormField<String>(
+                                dropdownColor: theme.colorScheme.surface,
+                                value: _selectedRole,
+                                isExpanded: true,
+                                style: GoogleFonts.jura(color: Colors.white, fontSize: 16),
+                                decoration: InputDecoration(
+                                  labelText: "Poste souhaité",
+                                  labelStyle: GoogleFonts.jura(color: Colors.grey),
+                                  filled: true,
+                                  fillColor: theme.colorScheme.surfaceVariant,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'STAFF', child: Text("Intégrer le Staff")),
+                                  DropdownMenuItem(value: 'ORGANISATEUR', child: Text("Co-Organisateur")),
+                                ],
+                                onChanged: (val) => setState(() => _selectedRole = val ?? 'STAFF'),
+                              ),
+                              const SizedBox(height: 24),
+
+                              _buildSaveButton(
+                                context: context,
+                                text: _isSendingRequest ? "Envoi..." : "Envoyer ma demande",
+                                onPressed: _isSendingRequest ? null : _submitRequest,
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   ),
+                ),
 
                 const SizedBox(height: 32),
 
@@ -323,7 +649,7 @@ class _ProfileViewState extends State<ProfileView> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     backgroundColor: theme.colorScheme.surface.withOpacity(0.5),
                   ),
-                  onPressed: () {},
+                  onPressed: _deleteAccount,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -331,12 +657,7 @@ class _ProfileViewState extends State<ProfileView> {
                       const SizedBox(width: 12),
                       Text(
                         "Supprimer mon compte",
-                        style: GoogleFonts.jura(
-                            color: theme.colorScheme.error,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            letterSpacing: 0.5
-                        ),
+                        style: GoogleFonts.jura(color: theme.colorScheme.error, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
                       ),
                     ],
                   ),
@@ -350,8 +671,6 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  // --- WIDGETS REUSABLES ADAPTÉS ---
-
   Widget _buildNeonContainer({required BuildContext context, required Widget child}) {
     final theme = Theme.of(context);
     return Container(
@@ -362,11 +681,7 @@ class _ProfileViewState extends State<ProfileView> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: theme.colorScheme.primary.withOpacity(0.1), width: 1),
         boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.15),
-            blurRadius: 25,
-            spreadRadius: 1,
-          ),
+          BoxShadow(color: theme.colorScheme.primary.withOpacity(0.15), blurRadius: 25, spreadRadius: 1),
         ],
       ),
       child: child,
@@ -374,10 +689,7 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.jura(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-    );
+    return Text(title, style: GoogleFonts.jura(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold));
   }
 
   Widget _buildTextField({
@@ -386,6 +698,7 @@ class _ProfileViewState extends State<ProfileView> {
     required TextEditingController controller,
     bool isPassword = false,
     bool isObscured = true,
+    bool readOnly = false,
     VoidCallback? onToggleObscure,
   }) {
     final theme = Theme.of(context);
@@ -397,25 +710,16 @@ class _ProfileViewState extends State<ProfileView> {
         TextField(
           controller: controller,
           obscureText: isPassword ? isObscured : false,
-          style: GoogleFonts.jura(color: theme.colorScheme.onSurface, fontSize: 16),
+          readOnly: readOnly,
+          style: GoogleFonts.jura(color: readOnly ? Colors.grey[500] : theme.colorScheme.onSurface, fontSize: 16),
           decoration: InputDecoration(
             filled: true,
-            fillColor: theme.colorScheme.surfaceVariant,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: theme.colorScheme.background, width: 1),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: theme.colorScheme.background, width: 1),
-            ),
+            fillColor: readOnly ? theme.colorScheme.background.withOpacity(0.5) : theme.colorScheme.surfaceVariant,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.background, width: 1)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.background, width: 1)),
             suffixIcon: isPassword
                 ? IconButton(
-              icon: Icon(
-                isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                color: theme.colorScheme.onSurfaceVariant,
-                size: 22,
-              ),
+              icon: Icon(isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: theme.colorScheme.onSurfaceVariant, size: 22),
               onPressed: onToggleObscure,
             )
                 : null,
@@ -439,50 +743,25 @@ class _ProfileViewState extends State<ProfileView> {
           elevation: 0,
         ),
         onPressed: onPressed,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.save_alt_outlined, color: theme.colorScheme.onPrimary, size: 24),
-            const SizedBox(width: 12),
-            Text(
-              text,
-              style: GoogleFonts.jura(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.onPrimary,
-              ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.rocket_launch_outlined, color: theme.colorScheme.onPrimary, size: 24),
+                const SizedBox(width: 12),
+                Text(text, style: GoogleFonts.jura(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimary)),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildValiderButton({required BuildContext context, required VoidCallback onPressed}) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      width: 130,
-      height: 38,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: theme.colorScheme.primary.withOpacity(0.6),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 0,
-        ),
-        onPressed: onPressed,
-        child: Text(
-          "Valider",
-          style: GoogleFonts.jura(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onPrimary,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildRequestItem(BuildContext context, String userName, String type) {
+  Widget _buildRequestItem(BuildContext context, Map<String, dynamic> request) {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(top: 12),
@@ -498,24 +777,18 @@ class _ProfileViewState extends State<ProfileView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                    userName,
-                    style: GoogleFonts.jura(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 15)
-                ),
-                Text(
-                    type,
-                    style: GoogleFonts.jura(color: theme.colorScheme.onSurfaceVariant, fontSize: 13)
-                ),
+                Text(request['userNom'] ?? 'Utilisateur Inconnu', style: GoogleFonts.jura(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 15)),
+                Text("Poste : ${request['roleDemande']}", style: GoogleFonts.jura(color: theme.colorScheme.onSurfaceVariant, fontSize: 13)),
               ],
             ),
           ),
           IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.check_rounded, color: BuckshotTheme.successColor, size: 24)
+            onPressed: () => _handleAcceptRequest(request),
+            icon: Icon(Icons.check_rounded, color: BuckshotTheme.successColor, size: 24),
           ),
           IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.close_rounded, color: theme.colorScheme.error, size: 24)
+            onPressed: () => _handleRejectRequest(request['userId']),
+            icon: Icon(Icons.close_rounded, color: theme.colorScheme.error, size: 24),
           ),
         ],
       ),
