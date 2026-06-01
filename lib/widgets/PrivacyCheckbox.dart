@@ -29,7 +29,7 @@ class PrivacyCheckbox extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
                 }
                 if (snapshot.hasError) {
-                  return const Text('Erreur lors du chargement du fichier 😅', style: TextStyle(color: Colors.white));
+                  return const Text('Erreur lors du chargement du fichier', style: TextStyle(color: Colors.white));
                 }
                 
                 return SingleChildScrollView(
