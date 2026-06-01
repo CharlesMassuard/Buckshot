@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'register_view.dart';
+import 'home_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -26,20 +27,38 @@ class _LoginViewState extends State<LoginView> {
   void _signIn() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final theme = Theme.of(context);
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Remplis les champs, t'as cru que j'allais deviner ? 🧐")),
+        SnackBar(
+          content: const Text("Remplis les champs, t'as cru que j'allais deviner ? 🧐"),
+          backgroundColor: theme.colorScheme.error,
+        ),
       );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
+      // 1. Connexion Firebase Auth
       await _authService.signInWithEmailAndPassword(email, password);
+
+      // 2. CORRECTION : Redirection immédiate vers la page d'accueil après succès !
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeView()),
+        );
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: theme.colorScheme.error,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -161,15 +180,19 @@ class _LoginViewState extends State<LoginView> {
         style: theme.elevatedButtonTheme.style,
         onPressed: onPressed,
         child: isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const SizedBox(
+          height: 24,
+          width: 24,
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+        )
             : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 28),
-                  const SizedBox(width: 14),
-                  Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
-                ],
-              ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28),
+            const SizedBox(width: 14),
+            Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }

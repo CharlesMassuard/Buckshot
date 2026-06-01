@@ -109,7 +109,6 @@ class _HomeViewState extends State<HomeView> {
   }
 }
 
-// Le reste de ton widget _HomeContent (sans aucun changement requis)
 class _HomeContent extends StatelessWidget {
   const _HomeContent();
 
@@ -139,7 +138,10 @@ class _HomeContent extends StatelessWidget {
           final docs = snapshot.data?.docs ?? [];
           if (docs.isEmpty) return const Center(child: Text('Aucun événement'));
 
-          final mainEvent = docs.first.data() as Map<String, dynamic>;
+          // Extraction du premier événement
+          final mainEventDoc = docs.first;
+          final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
+          final mainEventId = mainEventDoc.id; // Récupération de l'ID réel du document
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
@@ -156,7 +158,12 @@ class _HomeContent extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => EventDetailView(eventData: mainEvent)),
+                      MaterialPageRoute(
+                        builder: (context) => EventDetailView(
+                          eventId: mainEventId,
+                          eventData: mainEvent,
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -203,7 +210,9 @@ class _HomeContent extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8.0),
         itemCount: docs.length,
         itemBuilder: (context, index) {
-          final event = docs[index].data() as Map<String, dynamic>;
+          final doc = docs[index];
+          final event = doc.data() as Map<String, dynamic>;
+          final eventId = doc.id; // Récupération de l'ID réel du document
 
           return ShotgunItem(
             title: event['nom'] ?? 'Événement',
@@ -213,7 +222,12 @@ class _HomeContent extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => EventDetailView(eventData: event)),
+                MaterialPageRoute(
+                  builder: (context) => EventDetailView(
+                    eventId: eventId,
+                    eventData: event,
+                  ),
+                ),
               );
             },
           );

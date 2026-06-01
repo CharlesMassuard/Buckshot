@@ -141,7 +141,10 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
       physics: const BouncingScrollPhysics(),
       itemCount: tabDocs.length,
       itemBuilder: (context, index) {
-        final event = tabDocs[index].data() as Map<String, dynamic>;
+        final doc = tabDocs[index];
+        final event = doc.data() as Map<String, dynamic>;
+        final eventId = doc.id; // Récupération de l'ID réel du document
+
         final title = event['nom'] ?? 'Événement';
         final lieu = event['lieu'] ?? 'Lieu non spécifié';
         final dateHeure = event['dateHeureEvent'] as Timestamp?;
@@ -151,7 +154,10 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => EventDetailView(eventData: event),
+                builder: (context) => EventDetailView(
+                  eventId: eventId,
+                  eventData: event,
+                ),
               ),
             );
           },

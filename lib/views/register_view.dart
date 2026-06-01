@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'login_view.dart';
 
@@ -10,7 +12,8 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _usernameController = TextEditingController();
+  final _usernameController = TextEditingController(); // Utilisé pour le Prénom
+  final _lastNameController = TextEditingController();  // Utilisé pour le Nom
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -22,6 +25,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void dispose() {
     _usernameController.dispose();
+    _lastNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
@@ -29,11 +33,14 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _signUp() async {
+    final username = _usernameController.text.trim();
+    final lastName = _lastNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final confirm = _confirmController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || confirm.isEmpty) {
+    // Vérification que TOUS les champs sont remplis
+    if (username.isEmpty || lastName.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
       _showError("Remplis tout, on n'est pas aux devinettes ici ! 📝");
       return;
     }
@@ -44,13 +51,35 @@ class _RegisterPageState extends State<RegisterPage> {
 
     setState(() => _isLoading = true);
     try {
+      // 1. Création du compte dans l'authentification Firebase
       await _authService.createUserWithEmailAndPassword(email, password);
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginView()),
-        );
+
+      // 2. Récupération de l'UID généré pour l'utilisateur actuellement connecté
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        // 3. Insertion dans Firestore avec les vraies données
+        await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
+          'uid': currentUser.uid,
+          'prenom': username,
+          'nom': lastName,
+          'email': email,
+          'organisation': '',
+          'role': 'USER',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        // 4. Redirection vers la page de connexion
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginView()),
+          );
+        }
+      } else {
+        _showError("Une erreur est survenue lors de la récupération de l'utilisateur. ❌");
       }
+
     } catch (e) {
       if (mounted) _showError(e.toString());
     } finally {
@@ -59,7 +88,13 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    final theme = Theme.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: theme.colorScheme.error,
+        )
+    );
   }
 
   @override
@@ -107,7 +142,9 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         child: Column(
                           children: [
-                            BuckshotInputField(controller: _usernameController, hintText: 'Nom d\'utilisateur'),
+                            BuckshotInputField(controller: _usernameController, hintText: 'Prénom'),
+                            const SizedBox(height: 16),
+                            BuckshotInputField(controller: _lastNameController, hintText: 'Nom'),
                             const SizedBox(height: 16),
                             BuckshotInputField(controller: _emailController, hintText: 'Adresse mail'),
                             const SizedBox(height: 16),
@@ -174,15 +211,19 @@ class _RegisterPageState extends State<RegisterPage> {
         style: theme.elevatedButtonTheme.style,
         onPressed: onPressed,
         child: isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const SizedBox(
+          height: 24,
+          width: 24,
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+        )
             : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 28),
-                  const SizedBox(width: 14),
-                  Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
-                ],
-              ),
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28),
+            const SizedBox(width: 14),
+            Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
