@@ -334,8 +334,18 @@ class _ProfileViewState extends State<ProfileView> {
           }
 
           final role = userData?['role'] ?? 'USER';
-          final currentOrg = userData?['organisation'] ?? '';
-          _currentOrgController.text = currentOrg;
+          final String currentOrg = (userData?['organisation'] ?? '').toString().trim();
+
+          // Correction de l'assignation asynchrone sécurisée pour éviter de couper le stream
+          if (_currentOrgController.text != currentOrg) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _currentOrgController.text = currentOrg;
+                });
+              }
+            });
+          }
 
           final bool hasOrganisation = (role == 'ORGANISATEUR' || role == 'STAFF') && currentOrg.isNotEmpty;
           final bool isOrganizer = role == 'ORGANISATEUR';
@@ -437,7 +447,7 @@ class _ProfileViewState extends State<ProfileView> {
                       Text("Rôle actuel : $role", style: GoogleFonts.jura(color: theme.colorScheme.primary, fontSize: 14, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
                       FutureBuilder<DocumentSnapshot>(
-                        future: FirebaseFirestore.instance.collection('organizers').doc(currentOrg.trim()).get(),
+                        future: FirebaseFirestore.instance.collection('organizers').doc(currentOrg).get(),
                         builder: (context, orgSnap) {
                           String displayName = currentOrg;
                           if (orgSnap.hasData && orgSnap.data!.exists) {
@@ -474,15 +484,23 @@ class _ProfileViewState extends State<ProfileView> {
                         _buildSectionTitle("Demandes d'accès reçues"),
                         const SizedBox(height: 8),
                         StreamBuilder<QuerySnapshot>(
-                          // On cible bien orgaId pour récupérer les demandes destinées à cette structure
                           stream: FirebaseFirestore.instance
                               .collection('demandes_organisation')
-                              .where('orgaId', isEqualTo: currentOrg.trim())
+                              .where('orgaId', isEqualTo: currentOrg)
                               .snapshots(),
                           builder: (context, reqSnapshot) {
-                            if (!reqSnapshot.hasData) return const LinearProgressIndicator();
+                            if (reqSnapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                            }
 
-                            // Filtrage manuel du statut pour éviter l'obligation d'un index composite complexe
+                            if (!reqSnapshot.hasData || reqSnapshot.data!.docs.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text("Aucune demande en attente pour votre structure. ☕", style: GoogleFonts.jura(color: Colors.grey, fontSize: 14)),
+                              );
+                            }
+
+                            // Filtrage local pour éviter l'index composite obligatoire
                             final docs = reqSnapshot.data!.docs.where((doc) {
                               final data = doc.data() as Map<String, dynamic>;
                               return data['status'] == 'EN_ATTENTE';
@@ -494,6 +512,7 @@ class _ProfileViewState extends State<ProfileView> {
                                 child: Text("Aucune demande en attente pour votre structure. ☕", style: GoogleFonts.jura(color: Colors.grey, fontSize: 14)),
                               );
                             }
+
                             return ListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
