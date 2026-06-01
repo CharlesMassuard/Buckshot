@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'ticket_detail_view.dart';
 
 class MyTicketsView extends StatefulWidget {
   const MyTicketsView({super.key});
@@ -72,6 +73,7 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
                 final eventData = eventDoc.data()!;
                 combinedTickets.add({
                   'billetId': billetDoc.id,
+                  'userId': billetData['userId'] ?? user.uid,
                   'scanAt': billetData['scanAt'],
                   'createdAt': billetData['createdAt'],
                   'eventId': eventId,
@@ -187,7 +189,7 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
     if (tickets.isEmpty) {
       return Center(
         child: Text(
-          "Aucun billet ici. 🎫",
+          "Aucun billet ici pour le moment 😢",
           style: GoogleFonts.jura(color: Colors.grey[500], fontSize: 16),
         ),
       );
@@ -199,65 +201,87 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
       itemBuilder: (context, index) {
         final ticket = tickets[index];
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  ticket['eventImage'],
-                  width: 90,
-                  height: 90,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 90,
-                      height: 90,
-                      color: Colors.grey[800],
-                      child: const Icon(Icons.image, color: Colors.white54),
-                    );
-                  },
-                ),
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => TicketDetailView(ticketData: ticket),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(0.0, 1.0); // Commence tout en bas de l'écran
+                  const end = Offset.zero; // Finit à sa position normale
+                  const curve = Curves.easeInOutCubic; // Animation fluide et naturelle
+
+                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
+                transitionDuration: const Duration(milliseconds: 400), // Vitesse de l'effet
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ticket['eventNom'],
-                      style: GoogleFonts.jura(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatEventDate(ticket['eventDate'], ticket['eventDateFin']),
-                      style: GoogleFonts.jura(
-                        fontSize: 13,
-                        color: Colors.grey[400],
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      ticket['eventLieu'],
-                      style: GoogleFonts.jura(
-                        fontSize: 13,
-                        color: Colors.grey[400],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+            );
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    ticket['eventImage'],
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 90,
+                        height: 90,
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.image, color: Colors.white54),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ticket['eventNom'],
+                        style: GoogleFonts.jura(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatEventDate(ticket['eventDate'], ticket['eventDateFin']),
+                        style: GoogleFonts.jura(
+                          fontSize: 13,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        ticket['eventLieu'],
+                        style: GoogleFonts.jura(
+                          fontSize: 13,
+                          color: Colors.grey[400],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
