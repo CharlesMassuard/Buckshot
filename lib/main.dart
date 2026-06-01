@@ -1,3 +1,4 @@
+import 'package:buckshot/views/create_event_view.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -31,7 +32,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Buckshot QR Tool',
       theme: BuckshotTheme.darkTheme,
-      home: const HomeView(),
+      home: const CreateEventView(),
     );
   }
 }

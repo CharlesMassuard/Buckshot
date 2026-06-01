@@ -1,4 +1,4 @@
-import 'package:buckshot/widgets/BarreDeNaviation.dart';
+import 'package:buckshot/widgets/BarreDeNavigation.dart';
 import 'package:buckshot/widgets/ShotGunBanner.dart';
 import 'package:buckshot/widgets/ShotGunItem.dart';
 import 'package:flutter/material.dart';
@@ -39,7 +39,7 @@ class _MonCatalogueAppState extends State<MonCatalogueApp> {
               _sectionTitle('Barre de Recherche'),
 
               _wrapCentred(
-                const MaBarreDeRecherche(),
+                const BarreDeRecherche(),
               ),
 
               const Divider(height: 40),
@@ -88,7 +88,7 @@ class _MonCatalogueAppState extends State<MonCatalogueApp> {
               _sectionTitle("Barre de navigation"),
 
               _wrapCentred(
-                Barredenaviation(
+                Barredenavigation(
                   currentIndex: currentIndex,
 
                   onItemSelected: (index) {
