@@ -140,14 +140,16 @@ class _EventDetailViewState extends State<EventDetailView> {
   }
 
   String _openBilleterieNotificationMessage(String eventName) {
-    final List<Map<String, dynamic>> pool = [
-      {'text': "C'est ouvert ! Fonce prendre ta place pour $eventName ! 🚀🎉", 'weight': 40},
-      {'text': "La billetterie pour $eventName est maintenant ouverte ! C'est le moment de dégainer. 🎯🕹️", 'weight': 30},
-      {'text': "Le shotgun pour $eventName est officiellement lancé ! Que la chasse commence ! 🏹🔥", 'weight': 30},
-      {'text': "C'est parti pour $eventName ! Ne laisse pas passer ta chance cette fois. 🚂🎫", 'weight': 20},
-      {'text': "La billetterie de $eventName vient d'ouvrir ! Prépare tes meilleurs réflexes pour le jour J ! 🎯🕹️", 'weight': 10},
+    final List<String> pool = [
+      "C'est ouvert ! Fonce prendre ta place pour $eventName ! 🚀🎉",
+      "La billetterie pour $eventName est maintenant ouverte ! C'est le moment de dégainer. 🎯🕹️",
+      "Le shotgun pour $eventName est officiellement lancé ! Que la chasse commence ! 🏹🔥",
+      "C'est parti pour $eventName ! Ne laisse pas passer ta chance cette fois. 🚂🎫",
+      "La billetterie de $eventName vient d'ouvrir ! Prépare tes meilleurs réflexes pour le jour J ! 🎯🕹️",
     ];
-    return _getRandomMessage(pool, eventName);
+
+    final random = Random();
+    return pool[random.nextInt(pool.length)];
   }
 
   Future<void> _programmerRappel(String eventId, String eventName, Timestamp? dateOuverture) async {
