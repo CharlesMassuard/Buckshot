@@ -172,7 +172,7 @@ class _PasswordSectionState extends State<PasswordSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.rocket_launch_outlined, color: theme.colorScheme.onPrimary, size: 24),
+                Icon(Icons.save, color: theme.colorScheme.onPrimary, size: 24),
                 const SizedBox(width: 12),
                 Text(text, style: GoogleFonts.jura(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimary)),
               ],

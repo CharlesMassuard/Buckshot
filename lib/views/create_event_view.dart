@@ -217,6 +217,8 @@ class _CreateEventViewState extends State<CreateEventView> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Événement créé avec succès !')),
     );
+
+
   }
 
   @override

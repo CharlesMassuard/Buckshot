@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ProfileInfoSection extends StatefulWidget {
+  final String email;
   final String initialFirstName;
   final String initialLastName;
   final String userId;
@@ -10,6 +11,7 @@ class ProfileInfoSection extends StatefulWidget {
 
   const ProfileInfoSection({
     super.key,
+    required this.email,
     required this.initialFirstName,
     required this.initialLastName,
     required this.userId,
@@ -21,6 +23,7 @@ class ProfileInfoSection extends StatefulWidget {
 }
 
 class _ProfileInfoSectionState extends State<ProfileInfoSection> {
+  final _emailController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   bool _isUpdatingProfile = false;
@@ -28,6 +31,7 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
   @override
   void initState() {
     super.initState();
+    _emailController.text = widget.email;
     _firstNameController.text = widget.initialFirstName;
     _lastNameController.text = widget.initialLastName;
   }
@@ -35,6 +39,9 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
   @override
   void didUpdateWidget(covariant ProfileInfoSection oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_emailController.text.isEmpty && widget.email.isNotEmpty) {
+      _emailController.text = widget.email;
+    }
     if (_firstNameController.text.isEmpty && widget.initialFirstName.isNotEmpty) {
       _firstNameController.text = widget.initialFirstName;
     }
@@ -45,6 +52,7 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
 
   @override
   void dispose() {
+    _emailController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
@@ -89,6 +97,8 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
       ),
       child: Column(
         children: [
+          _buildTextField(context: context, label: "Email", controller: _emailController, readOnly: true),
+          const SizedBox(height: 16),
           _buildTextField(context: context, label: "Prénom", controller: _firstNameController),
           const SizedBox(height: 16),
           _buildTextField(context: context, label: "Nom", controller: _lastNameController),
@@ -103,7 +113,7 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
     );
   }
 
-  Widget _buildTextField({required BuildContext context, required String label, required TextEditingController controller}) {
+  Widget _buildTextField({required BuildContext context, required String label, required TextEditingController controller, bool readOnly = false}) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,10 +122,11 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          style: GoogleFonts.jura(color: theme.colorScheme.onSurface, fontSize: 16),
+          readOnly: readOnly,
+          style: GoogleFonts.jura(color: readOnly ? theme.colorScheme.onSurface.withValues(alpha: 0.5) : theme.colorScheme.onSurface, fontSize: 16),
           decoration: InputDecoration(
             filled: true,
-            fillColor: theme.colorScheme.surfaceContainerHighest,
+            fillColor: readOnly ? theme.colorScheme.surface.withValues(alpha: 0.5) : theme.colorScheme.surfaceContainerHighest,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.surface, width: 1)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.surface, width: 1)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -145,7 +156,7 @@ class _ProfileInfoSectionState extends State<ProfileInfoSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.rocket_launch_outlined, color: theme.colorScheme.onPrimary, size: 24),
+                Icon(Icons.save, color: theme.colorScheme.onPrimary, size: 24),
                 const SizedBox(width: 12),
                 Text(text, style: GoogleFonts.jura(fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onPrimary)),
               ],
