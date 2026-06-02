@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'scanner_view.dart';
@@ -33,6 +34,8 @@ class StaffView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
       body: SafeArea(
@@ -70,111 +73,144 @@ class StaffView extends StatelessWidget {
               ),
               const SizedBox(height: 25),
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('events').snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+                  builder: (context, userSnapshot) {
+                    if (userSnapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
                     }
 
-                    final eventDocs = snapshot.data?.docs ?? [];
-
-                    if (eventDocs.isEmpty) {
+                    if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
                       return Center(
                         child: Text(
-                          "Aucun événement à gérer pour le moment 😢",
+                          "Erreur lors de la récupération du profil 😢",
                           style: GoogleFonts.jura(color: Colors.grey[500], fontSize: 16),
                         ),
                       );
                     }
 
-                    return ListView.builder(
-                      itemCount: eventDocs.length,
-                      padding: const EdgeInsets.only(bottom: 20),
-                      itemBuilder: (context, index) {
-                        final doc = eventDocs[index];
-                        final event = doc.data() as Map<String, dynamic>;
-                        final eventId = doc.id;
+                    final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                    final String userIdOrganisateur = userData?['idOrganisateur'] ?? '';
 
-                        final String eventNom = event['nom'] ?? 'Événement';
-                        final String eventLieu = event['lieu'] ?? 'Lieu non spécifié';
-                        final String eventImage = event['imageUrl'] ?? 'assets/soiree.png';
-                        final Timestamp? eventDate = event['dateHeureEvent'] as Timestamp?;
-                        final Timestamp? eventDateFin = event['dateFinEvent'] as Timestamp?;
+                    if (userIdOrganisateur.isEmpty) {
+                      return Center(
+                        child: Text(
+                          "Tu n'es rattaché à aucune organisation 😢",
+                          style: GoogleFonts.jura(color: Colors.grey[500], fontSize: 16),
+                        ),
+                      );
+                    }
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 20),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ScannerView(
-                                    eventId: eventId, 
-                                    eventData: event,
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.asset(
-                                    eventImage,
-                                    width: 90,
-                                    height: 90,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('events')
+                          .where('idOrganisateur', isEqualTo: userIdOrganisateur)
+                          .snapshots(),
+                      builder: (context, eventSnapshot) {
+                        if (eventSnapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
+                        }
+
+                        final eventDocs = eventSnapshot.data?.docs ?? [];
+
+                        if (eventDocs.isEmpty) {
+                          return Center(
+                            child: Text(
+                              "Aucun événement à gérer pour le moment 😢",
+                              style: GoogleFonts.jura(color: Colors.grey[500], fontSize: 16),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          itemCount: eventDocs.length,
+                          padding: const EdgeInsets.only(bottom: 20),
+                          itemBuilder: (context, index) {
+                            final doc = eventDocs[index];
+                            final event = doc.data() as Map<String, dynamic>;
+                            final eventId = doc.id;
+
+                            final String eventNom = event['nom'] ?? 'Événement';
+                            final String eventLieu = event['lieu'] ?? 'Lieu non spécifié';
+                            final String eventImage = event['imageUrl'] ?? 'assets/soiree.png';
+                            final Timestamp? eventDate = event['dateHeureEvent'] as Timestamp?;
+                            final Timestamp? eventDateFin = event['dateFinEvent'] as Timestamp?;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 20),
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ScannerView(
+                                        eventId: eventId, 
+                                        eventData: event,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.asset(
+                                        eventImage,
                                         width: 90,
                                         height: 90,
-                                        color: Colors.grey[800],
-                                        child: const Icon(Icons.image, color: Colors.white54),
-                                      );
-                                    },
-                                  ),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 90,
+                                            height: 90,
+                                            color: Colors.grey[800],
+                                            child: const Icon(Icons.image, color: Colors.white54),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            eventNom,
+                                            style: GoogleFonts.jura(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _formatEventDate(eventDate, eventDateFin),
+                                            style: GoogleFonts.jura(
+                                              fontSize: 13,
+                                              color: Colors.grey[400],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            eventLieu,
+                                            style: GoogleFonts.jura(
+                                              fontSize: 13,
+                                              color: Colors.grey[400],
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        eventNom,
-                                        style: GoogleFonts.jura(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatEventDate(eventDate, eventDateFin),
-                                        style: GoogleFonts.jura(
-                                          fontSize: 13,
-                                          color: Colors.grey[400],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        eventLieu,
-                                        style: GoogleFonts.jura(
-                                          fontSize: 13,
-                                          color: Colors.grey[400],
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         );
                       },
                     );
