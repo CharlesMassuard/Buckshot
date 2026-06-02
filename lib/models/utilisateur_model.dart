@@ -1,4 +1,4 @@
-import 'package:buckshot/models/role.dart';
+import 'package:buckshot/models/role_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EventModel {
