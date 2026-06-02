@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EventModel {
@@ -12,6 +14,7 @@ class EventModel {
   final DateTime dateFinEvent;
   final DateTime dateOuvertureBilletterie;
   final DateTime dateFermetureBilletterie;
+  final String image;
 
   EventModel({
     required this.id,
@@ -25,6 +28,7 @@ class EventModel {
     required this.dateFinEvent,
     required this.dateOuvertureBilletterie,
     required this.dateFermetureBilletterie,
+    required this.image,
   });
 
   // Convertit un document Firestore en objet Dart exploitable
@@ -42,6 +46,7 @@ class EventModel {
       dateFinEvent: (data['dateFinEvent'] as Timestamp).toDate(),
       dateFermetureBilletterie: (data['dateFinEvent'] as Timestamp).toDate(), //ntm c pa ds le bon sens
       dateOuvertureBilletterie: (data['dateOuvertureBilletterie'] as Timestamp).toDate(),
+      image: data['image'] ?? '',
     );
   }
 
@@ -57,6 +62,7 @@ class EventModel {
       'dateFinEvent': dateFinEvent,
       'dateFermetureBilletterie': dateFermetureBilletterie,
       'dateOuvertureBilletterie': dateOuvertureBilletterie,
+      'image' : image
     };
   }
 }

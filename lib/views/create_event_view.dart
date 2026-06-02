@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:buckshot/models/event_model.dart';
@@ -6,6 +7,7 @@ import 'package:buckshot/BuckshotTheme.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image/image.dart' as img;
 
 class CreateEventView extends StatefulWidget {
   const CreateEventView({super.key});
@@ -40,6 +42,36 @@ class _CreateEventViewState extends State<CreateEventView> {
       });
     }
   }
+
+  Future<File> resizeImage(File imageFile, {int maxWidth = 1080}) async {
+    final bytes = await imageFile.readAsBytes();
+    final image = img.decodeImage(bytes)!;
+    if (image.width > maxWidth) {
+      final resized = img.copyResize(image, width: maxWidth);
+      final resizedBytes = img.encodeJpg(resized, quality: 85);
+      return File(imageFile.path)
+        ..writeAsBytesSync(resizedBytes);
+    }
+    return imageFile;
+  }
+
+
+    Future<String?> imageToBase64(File? imageFile) async {
+      if (imageFile == null){
+        return "";
+      }
+
+      final resizedFile = await resizeImage(imageFile, maxWidth: 200);
+      final bytes = await resizedFile.readAsBytes();
+      final base64 = base64Encode(bytes);
+
+      // Vérifier que la taille Base64 < 1 Mo (1 048 576 octets)
+      if (base64.length > 1048576) {
+        print("Erreur: L'image en Base64 dépasse 1 Mo !");
+        return null;
+      }
+      return base64;
+    }
 
   void _validate() async {
     if (_titleController.text.isEmpty) {
@@ -90,7 +122,12 @@ class _CreateEventViewState extends State<CreateEventView> {
       );
       return;
     }
-
+    if (_image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('L\'image est obligatoire !')),
+      );
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -107,44 +144,50 @@ class _CreateEventViewState extends State<CreateEventView> {
 
         final organizerDoc = await FirebaseFirestore.instance
             .collection('organizers')
-            .doc(data['organisation'])
+            .doc(data['idOrganisateur'])
             .get();
 
         if (!organizerDoc.exists) return;
 
         final String key = "event_${_titleController.text}_${selectedStartDate.toString()}";
+
+        final resizedImage = await imageToBase64(_image);
+
+        if (resizedImage == null) return;
+
         final EventModel eventModel = EventModel(
           id : key,
           nom: _titleController.text,
-            description: _descriptionController.text,
-              idOrganisateur: data['organisation'],
-              capaciteMax: int.parse(_seatsController.text),
-              placesRestantes : int.parse(_seatsController.text),
-              lieu: _locationController.text,
-              dateHeureEvent: DateTime(selectedStartDate?.year ?? DateTime.now().year,
-                  selectedStartDate?.month ?? DateTime.now().month,
-                  selectedStartDate?.day ?? DateTime.now().day,
-                  selectedStartTime?.hour ?? DateTime.now().hour,
-                  selectedStartTime?.minute ?? DateTime.now().minute),
+          description: _descriptionController.text,
+          idOrganisateur: data['idOrganisateur'],
+          capaciteMax: int.parse(_seatsController.text),
+          placesRestantes : int.parse(_seatsController.text),
+          lieu: _locationController.text,
+          dateHeureEvent: DateTime(selectedStartDate?.year ?? DateTime.now().year,
+              selectedStartDate?.month ?? DateTime.now().month,
+              selectedStartDate?.day ?? DateTime.now().day,
+              selectedStartTime?.hour ?? DateTime.now().hour,
+              selectedStartTime?.minute ?? DateTime.now().minute),
 
-              dateFinEvent: DateTime(selectedEndDate?.year ?? DateTime.now().year,
-                  selectedEndDate?.month ?? DateTime.now().month,
-                  selectedEndDate?.day ?? DateTime.now().day,
-                  selectedEndTime?.hour ?? DateTime.now().hour,
-                  selectedEndTime?.minute ?? DateTime.now().minute),
+          dateFinEvent: DateTime(selectedEndDate?.year ?? DateTime.now().year,
+              selectedEndDate?.month ?? DateTime.now().month,
+              selectedEndDate?.day ?? DateTime.now().day,
+              selectedEndTime?.hour ?? DateTime.now().hour,
+              selectedEndTime?.minute ?? DateTime.now().minute),
 
-              dateOuvertureBilletterie: DateTime(selectedOpenDate?.year ?? DateTime.now().year,
-                  selectedOpenDate?.month ?? DateTime.now().month,
-                  selectedOpenDate?.day ?? DateTime.now().day,
-                  selectedOpenTime?.hour ?? DateTime.now().hour,
-                  selectedOpenTime?.minute ?? DateTime.now().minute),
+          dateOuvertureBilletterie: DateTime(selectedOpenDate?.year ?? DateTime.now().year,
+              selectedOpenDate?.month ?? DateTime.now().month,
+              selectedOpenDate?.day ?? DateTime.now().day,
+              selectedOpenTime?.hour ?? DateTime.now().hour,
+              selectedOpenTime?.minute ?? DateTime.now().minute),
 
-              dateFermetureBilletterie: DateTime(selectedCloseDate?.year ?? DateTime.now().year,
-                  selectedCloseDate?.month ?? DateTime.now().month,
-                  selectedCloseDate?.day ?? DateTime.now().day,
-                  selectedCloseTime?.hour ?? DateTime.now().hour,
-                  selectedCloseTime?.minute ?? DateTime.now().minute),
-            );
+          dateFermetureBilletterie: DateTime(selectedCloseDate?.year ?? DateTime.now().year,
+              selectedCloseDate?.month ?? DateTime.now().month,
+              selectedCloseDate?.day ?? DateTime.now().day,
+              selectedCloseTime?.hour ?? DateTime.now().hour,
+              selectedCloseTime?.minute ?? DateTime.now().minute),
+          image: resizedImage,
+        );
 
         await FirebaseFirestore.instance.collection('events').add(eventModel.toFirestore());
 
@@ -174,8 +217,6 @@ class _CreateEventViewState extends State<CreateEventView> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Événement créé avec succès !')),
     );
-
-
   }
 
   @override

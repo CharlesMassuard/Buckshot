@@ -23,6 +23,11 @@ class _DateTimePickerState extends State<DateTimePicker> {
     super.dispose();
   }
 
+  void resetData(){
+    selectedDate = null;
+    selectedTime = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return InkWell( // Date et heure de début
