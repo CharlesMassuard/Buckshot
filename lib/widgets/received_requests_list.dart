@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:buckshot/BuckshotTheme.dart';
+import 'package:buckshot/buckshot_theme.dart';
 import '../models/demande_orga_model.dart';
 
 class ReceivedRequestsList extends StatelessWidget {

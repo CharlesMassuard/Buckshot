@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../widgets/buckshot_input_field.dart'; // 1. IMPORTANT : On importe ton nouveau widget externe ici !
 import 'register_view.dart';
 import 'home_view.dart';
 
@@ -11,6 +12,7 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
+  final _formKey = GlobalKey<FormState>(); 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
@@ -25,26 +27,15 @@ class _LoginViewState extends State<LoginView> {
   }
 
   void _signIn() async {
+    if (!_formKey.currentState!.validate()) return; 
+
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final theme = Theme.of(context);
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Remplis les champs, t'as cru que j'allais deviner ? 🧐"),
-          backgroundColor: theme.colorScheme.error,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
     try {
-      // 1. Connexion Firebase Auth
       await _authService.signInWithEmailAndPassword(email, password);
-
-      // 2. CORRECTION : Redirection immédiate vers la page d'accueil après succès !
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -108,53 +99,78 @@ class _LoginViewState extends State<LoginView> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          children: [
-                            BuckshotInputField(controller: _emailController, hintText: 'Adresse mail'),
-                            const SizedBox(height: 16),
-                            BuckshotInputField(
-                              controller: _passwordController,
-                              hintText: 'Mot de passe',
-                              isPassword: true,
-                              isObscured: _isPasswordObscured,
-                              onToggleObscure: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
-                            ),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton(
-                                onPressed: () {},
-                                child: Text(
-                                  'Mot de passe oublié ?',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey[500],
-                                    decoration: TextDecoration.underline,
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              BuckshotInputField(
+                                controller: _emailController,
+                                hintText: 'Adresse mail',
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Renseigne un email, t'as cru que j'allais deviner ? 🧐";
+                                  }
+                                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                  if (!emailRegex.hasMatch(value)) {
+                                    return "Cet email n'a pas un format valide.";
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              BuckshotInputField(
+                                controller: _passwordController,
+                                hintText: 'Mot de passe',
+                                isPassword: true,
+                                isObscured: _isPasswordObscured,
+                                onToggleObscure: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Le mot de passe est obligatoire.";
+                                  }
+                                  if (value.length < 8) {
+                                    return "Le mot de passe doit faire au moins 8 caractères.";
+                                  }
+                                  return null;
+                                },
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    'Mot de passe oublié ?',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: Colors.grey[500],
+                                      decoration: TextDecoration.underline,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 24),
-                            _buildButton(
-                              context: context,
-                              label: 'Se connecter',
-                              icon: Icons.person_outline,
-                              onPressed: _isLoading ? null : _signIn,
-                              isLoading: _isLoading,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildDivider(theme),
-                            const SizedBox(height: 20),
-                            _buildOutlinedButton(
-                              context: context,
-                              label: 'Créer mon compte',
-                              icon: Icons.person_add_outlined,
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const RegisterPage()),
-                                );
-                              },
-                            ),
-                          ],
+                              const SizedBox(height: 24),
+                              _buildButton(
+                                context: context,
+                                label: 'Se connecter',
+                                icon: Icons.person_outline,
+                                onPressed: _isLoading ? null : _signIn,
+                                isLoading: _isLoading,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildDivider(theme),
+                              const SizedBox(height: 20),
+                              _buildOutlinedButton(
+                                context: context,
+                                label: 'Créer mon compte',
+                                icon: Icons.person_add_outlined,
+                                onPressed: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const RegisterPage()),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const Spacer(),
@@ -180,11 +196,7 @@ class _LoginViewState extends State<LoginView> {
         style: theme.elevatedButtonTheme.style,
         onPressed: onPressed,
         child: isLoading
-            ? const SizedBox(
-          height: 24,
-          width: 24,
-          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-        )
+            ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
             : Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -204,10 +216,7 @@ class _LoginViewState extends State<LoginView> {
       width: double.infinity,
       height: 55,
       child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: colors.secondary, width: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
+        style: OutlinedButton.styleFrom(side: BorderSide(color: colors.secondary, width: 2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
         onPressed: onPressed,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -246,35 +255,6 @@ class _LoginViewState extends State<LoginView> {
         ],
       ),
       textAlign: TextAlign.center,
-    );
-  }
-}
-
-class BuckshotInputField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final bool isPassword;
-  final bool isObscured;
-  final VoidCallback? onToggleObscure;
-
-  const BuckshotInputField({super.key, required this.controller, required this.hintText, this.isPassword = false, this.isObscured = false, this.onToggleObscure});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return TextField(
-      controller: controller,
-      obscureText: isPassword ? isObscured : false,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
-        hintText: hintText,
-        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-        contentPadding: const EdgeInsets.all(18),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-        suffixIcon: isPassword ? IconButton(icon: Icon(isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.grey[600]), onPressed: onToggleObscure) : null,
-      ),
     );
   }
 }
