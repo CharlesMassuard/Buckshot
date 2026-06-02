@@ -21,7 +21,6 @@ class _ProfileViewState extends State<ProfileView> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // Gestion des demandes d'organisation
   String? _selectedOrgaId;
   String _selectedRole = 'STAFF';
 
@@ -50,7 +49,7 @@ class _ProfileViewState extends State<ProfileView> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginView()),
-            (route) => false,
+        (route) => false,
       );
     }
   }
@@ -130,7 +129,7 @@ class _ProfileViewState extends State<ProfileView> {
 
       final userDoc = FirebaseFirestore.instance.collection('users').doc(request['userId']);
       batch.update(userDoc, {
-        'organisation': request['orgaId'],
+        'idOrganisateur': request['orgaId'],
         'role': request['roleDemande'],
       });
 
@@ -161,7 +160,7 @@ class _ProfileViewState extends State<ProfileView> {
 
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'organisation': '',
+        'idOrganisateur': '',
         'role': 'USER',
       });
       _showSnackBar("Vous avez quitté l'organisation. Retour au statut standard.", isSuccess: true);
@@ -334,9 +333,8 @@ class _ProfileViewState extends State<ProfileView> {
           }
 
           final role = userData?['role'] ?? 'USER';
-          final String currentOrg = (userData?['organisation'] ?? '').toString().trim();
+          final String currentOrg = (userData?['idOrganisateur'] ?? '').toString().trim();
 
-          // Correction de l'assignation asynchrone sécurisée pour éviter de couper le stream
           if (_currentOrgController.text != currentOrg) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
@@ -355,7 +353,6 @@ class _ProfileViewState extends State<ProfileView> {
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Column(
               children: [
-                // 1. BLOC PROFIL
                 _buildNeonContainer(
                   context: context,
                   child: Column(
@@ -375,7 +372,6 @@ class _ProfileViewState extends State<ProfileView> {
 
                 const SizedBox(height: 24),
 
-                // 2. BLOC CHANGEMENT MOT DE PASSE
                 if (isEmailProvider)
                   _buildNeonContainer(
                     context: context,
@@ -435,7 +431,6 @@ class _ProfileViewState extends State<ProfileView> {
 
                 const SizedBox(height: 24),
 
-                // 3. BLOC REQUÊTES D'ORGANISATION
                 _buildNeonContainer(
                   context: context,
                   child: hasOrganisation
@@ -500,7 +495,6 @@ class _ProfileViewState extends State<ProfileView> {
                               );
                             }
 
-                            // Filtrage local pour éviter l'index composite obligatoire
                             final docs = reqSnapshot.data!.docs.where((doc) {
                               final data = doc.data() as Map<String, dynamic>;
                               return data['status'] == 'EN_ATTENTE';
@@ -659,7 +653,6 @@ class _ProfileViewState extends State<ProfileView> {
 
                 const SizedBox(height: 32),
 
-                // 4. SUPPRESSION DU COMPTE
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: theme.colorScheme.error, width: 1.5),
