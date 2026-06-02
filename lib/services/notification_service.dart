@@ -1,6 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'dart:io';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -28,10 +29,19 @@ class NotificationService {
 
     await _notificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        
-      },
+      onDidReceiveNotificationResponse: (NotificationResponse response) {},
     );
+  }
+
+  Future<void> checkExactAlarmPermission() async {
+    if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidPlugin = 
+          _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      if (androidPlugin != null) {
+        await androidPlugin.requestExactAlarmsPermission();
+      }
+    }
   }
 
   NotificationDetails _notificationDetails() {

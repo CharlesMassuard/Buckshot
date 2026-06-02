@@ -12,6 +12,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
   await NotificationService().initNotification();
+  await NotificationService().checkExactAlarmPermission();
 
   bool firebaseInitialized = false;
 
