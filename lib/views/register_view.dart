@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'login_view.dart';
+import '../widgets/PrivacyCheckbox.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -18,9 +19,11 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   final _authService = AuthService();
+  
   bool _isLoading = false;
   bool _isObscured = true;
   bool _isConfirmObscured = true;
+  bool _hasAcceptedPrivacy = false; 
 
   @override
   void dispose() {
@@ -46,6 +49,10 @@ class _RegisterPageState extends State<RegisterPage> {
     }
     if (password != confirm) {
       _showError("Tes mots de passe ne sont pas jumeaux... 👯‍♂️");
+      return;
+    }
+    if (!_hasAcceptedPrivacy) {
+      _showError("Tu dois accepter la politique de confidentialité pour continuer ! 🕵️‍♂️");
       return;
     }
 
@@ -162,7 +169,19 @@ class _RegisterPageState extends State<RegisterPage> {
                               isObscured: _isConfirmObscured,
                               onToggleObscure: () => setState(() => _isConfirmObscured = !_isConfirmObscured),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 16),
+                            
+                            
+                            PrivacyCheckbox(
+                              isChecked: _hasAcceptedPrivacy,
+                              onChanged: (value) {
+                                setState(() {
+                                  _hasAcceptedPrivacy = value ?? false;
+                                });
+                              },
+                            ),
+                            
+                            const SizedBox(height: 24),
                             _buildButton(
                               context: context,
                               label: 'Créer mon compte',
@@ -188,7 +207,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const Spacer(),
-                      _buildFooter(theme),
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -261,21 +279,6 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         Expanded(child: Divider(color: Colors.grey[800])),
       ],
-    );
-  }
-
-  Widget _buildFooter(ThemeData theme) {
-    return Text.rich(
-      TextSpan(
-        text: 'En créant un compte, vous acceptez nos ',
-        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[400]),
-        children: const [
-          TextSpan(text: 'mentions légales', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
-          TextSpan(text: ' et notre '),
-          TextSpan(text: 'politique de confidentialité', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
-        ],
-      ),
-      textAlign: TextAlign.center,
     );
   }
 }
