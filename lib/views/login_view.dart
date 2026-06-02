@@ -71,7 +71,7 @@ class _LoginViewState extends State<LoginView> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -102,7 +102,7 @@ class _LoginViewState extends State<LoginView> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withOpacity(0.4),
+                              color: colors.primary.withValues(alpha: 0.4),
                               blurRadius: 25,
                               spreadRadius: 2,
                             ),
@@ -268,7 +268,7 @@ class BuckshotInputField extends StatelessWidget {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         filled: true,
-        fillColor: theme.colorScheme.surfaceVariant,
+        fillColor: theme.colorScheme.surfaceContainerHighest,
         hintText: hintText,
         hintStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
         contentPadding: const EdgeInsets.all(18),

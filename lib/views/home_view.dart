@@ -87,7 +87,7 @@ class _HomeViewState extends State<HomeView> {
         ]);
 
         return Scaffold(
-          backgroundColor: Theme.of(context).colorScheme.background,
+          backgroundColor: Theme.of(context).colorScheme.surface,
 
           // Utilisation de l'IndexedStack ajustée à notre liste dynamique de pages
           body: IndexedStack(

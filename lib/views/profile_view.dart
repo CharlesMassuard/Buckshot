@@ -196,7 +196,7 @@ class _ProfileViewState extends State<ProfileView> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceVariant,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 hintText: "Mot de passe",
                 hintStyle: const TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -279,7 +279,7 @@ class _ProfileViewState extends State<ProfileView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: GoogleFonts.jura(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: isSuccess ? BuckshotTheme.successColor.withOpacity(0.8) : theme.colorScheme.error,
+        backgroundColor: isSuccess ? BuckshotTheme.successColor.withValues(alpha: 0.8) : theme.colorScheme.error,
         duration: const Duration(seconds: 4),
       ),
     );
@@ -301,7 +301,7 @@ class _ProfileViewState extends State<ProfileView> {
     }
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -479,7 +479,7 @@ class _ProfileViewState extends State<ProfileView> {
                       if (isOrganizer) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          child: Divider(color: theme.colorScheme.background, thickness: 5),
+                          child: Divider(color: theme.colorScheme.surface, thickness: 5),
                         ),
                         _buildSectionTitle("Demandes d'accès reçues"),
                         const SizedBox(height: 8),
@@ -554,9 +554,9 @@ class _ProfileViewState extends State<ProfileView> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceVariant,
+                                color: theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: statusColor.withOpacity(0.5)),
+                                border: Border.all(color: statusColor.withValues(alpha: 0.5)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,14 +603,14 @@ class _ProfileViewState extends State<ProfileView> {
 
                               DropdownButtonFormField<String>(
                                 dropdownColor: theme.colorScheme.surface,
-                                value: _selectedOrgaId,
+                                initialValue: _selectedOrgaId,
                                 isExpanded: true,
                                 style: GoogleFonts.jura(color: Colors.white, fontSize: 16),
                                 decoration: InputDecoration(
                                   labelText: "Sélectionnez l'organisation",
                                   labelStyle: GoogleFonts.jura(color: Colors.grey),
                                   filled: true,
-                                  fillColor: theme.colorScheme.surfaceVariant,
+                                  fillColor: theme.colorScheme.surfaceContainerHighest,
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 items: orgDocs.map((doc) {
@@ -626,14 +626,14 @@ class _ProfileViewState extends State<ProfileView> {
 
                               DropdownButtonFormField<String>(
                                 dropdownColor: theme.colorScheme.surface,
-                                value: _selectedRole,
+                                initialValue: _selectedRole,
                                 isExpanded: true,
                                 style: GoogleFonts.jura(color: Colors.white, fontSize: 16),
                                 decoration: InputDecoration(
                                   labelText: "Poste souhaité",
                                   labelStyle: GoogleFonts.jura(color: Colors.grey),
                                   filled: true,
-                                  fillColor: theme.colorScheme.surfaceVariant,
+                                  fillColor: theme.colorScheme.surfaceContainerHighest,
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 items: const [
@@ -666,7 +666,7 @@ class _ProfileViewState extends State<ProfileView> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     minimumSize: const Size(double.infinity, 54),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    backgroundColor: theme.colorScheme.surface.withOpacity(0.5),
+                    backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.5),
                   ),
                   onPressed: _deleteAccount,
                   child: Row(
@@ -698,9 +698,9 @@ class _ProfileViewState extends State<ProfileView> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.1), width: 1),
+        border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.1), width: 1),
         boxShadow: [
-          BoxShadow(color: theme.colorScheme.primary.withOpacity(0.15), blurRadius: 25, spreadRadius: 1),
+          BoxShadow(color: theme.colorScheme.primary.withValues(alpha: 0.15), blurRadius: 25, spreadRadius: 1),
         ],
       ),
       child: child,
@@ -733,9 +733,9 @@ class _ProfileViewState extends State<ProfileView> {
           style: GoogleFonts.jura(color: readOnly ? Colors.grey[500] : theme.colorScheme.onSurface, fontSize: 16),
           decoration: InputDecoration(
             filled: true,
-            fillColor: readOnly ? theme.colorScheme.background.withOpacity(0.5) : theme.colorScheme.surfaceVariant,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.background, width: 1)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.background, width: 1)),
+            fillColor: readOnly ? theme.colorScheme.surface.withValues(alpha: 0.5) : theme.colorScheme.surfaceContainerHighest,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.surface, width: 1)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.surface, width: 1)),
             suffixIcon: isPassword
                 ? IconButton(
               icon: Icon(isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: theme.colorScheme.onSurfaceVariant, size: 22),
@@ -757,7 +757,7 @@ class _ProfileViewState extends State<ProfileView> {
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: theme.colorScheme.primary,
-          disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.3),
+          disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: 0,
         ),
@@ -786,9 +786,9 @@ class _ProfileViewState extends State<ProfileView> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.background, width: 1),
+        border: Border.all(color: theme.colorScheme.surface, width: 1),
       ),
       child: Row(
         children: [
