@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/ShotgunBanner.dart';
 import '../widgets/ShotgunItem.dart';
+import '../widgets/BarreDeRecherche.dart';
 import '../widgets/BarreDeNavigation.dart';
 import 'event_detail_view.dart';
 import 'search_view.dart';
@@ -21,7 +22,6 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView> {
   int _currentIndex = 0;
 
-  // 1. Liste complète de toutes les vues possibles de l'application
   final List<Widget> _allPages = [
     const _HomeContent(),                                                                             // Index 0
     const SearchView(),                                                                               // Index 1
@@ -35,42 +35,34 @@ class _HomeViewState extends State<HomeView> {
     final user = FirebaseAuth.instance.currentUser;
 
     return StreamBuilder<DocumentSnapshot>(
-      // Écoute en temps réel les changements de rôle dans Firestore
       stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
       builder: (context, snapshot) {
-
-        // Rôle par défaut si le chargement n'est pas fini ou s'il y a une erreur
         String role = 'USER';
         if (snapshot.hasData && snapshot.data!.exists) {
           final userData = snapshot.data!.data() as Map<String, dynamic>?;
           role = userData?['role'] ?? 'USER';
         }
 
-        // Condition stricte pour l'affichage du scanner au milieu
         final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
 
-        // 2. Construction dynamique de la liste des pages affichées
         List<Widget> activePages = [
-          _allPages[0], // Accueil
-          _allPages[1], // Recherche
+          _allPages[0],
+          _allPages[1],
         ];
 
         if (showScanner) {
-          activePages.add(_allPages[2]); // Injecte la vue Scan au milieu
+          activePages.add(_allPages[2]);
         }
 
         activePages.addAll([
-          _allPages[3], // Billets
-          _allPages[4], // Profil
+          _allPages[3],
+          _allPages[4],
         ]);
 
-        // Sûreté : Si le rôle change subitement et réduit le nombre d'onglets,
-        // on évite un crash lié à un index hors-limite.
         if (_currentIndex >= activePages.length) {
           _currentIndex = activePages.length - 1;
         }
 
-        // 3. Construction dynamique des boutons de la barre de navigation
         List<NavItem> navItems = [
           NavItem(icon: Icons.home_outlined, label: 'Accueil', onTap: () {}),
           NavItem(icon: Icons.search, label: 'Recherche', onTap: () {}),
@@ -95,7 +87,6 @@ class _HomeViewState extends State<HomeView> {
             index: _currentIndex,
             children: activePages,
           ),
-
           bottomNavigationBar: BarreDeNavigation(
             currentIndex: _currentIndex,
             onItemSelected: (index) {
@@ -127,64 +118,139 @@ class _HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final user = FirebaseAuth.instance.currentUser;
+    final now = DateTime.now();
 
-    return SafeArea(
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('events').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return const Center(child: Text('Erreur...'));
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
-          }
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('billets')
+          .where('userId', isEqualTo: user?.uid)
+          .snapshots(),
+      builder: (context, billetSnapshot) {
+        final Set<String> myRegisteredIds = billetSnapshot.hasData
+            ? billetSnapshot.data!.docs
+            .map((doc) => (doc.data() as Map<String, dynamic>)['eventId'] as String? ?? '')
+            .toSet()
+            : {};
 
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) return const Center(child: Text('Aucun événement'));
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('events').snapshots(),
+          builder: (context, eventSnapshot) {
+            if (eventSnapshot.hasError) return const Center(child: Text('Erreur...'));
+            if (eventSnapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
+            }
 
-          // Extraction du premier événement
-          final mainEventDoc = docs.first;
-          final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
-          final mainEventId = mainEventDoc.id; // Récupération de l'ID réel du document
+            final allDocs = eventSnapshot.data?.docs ?? [];
+            if (allDocs.isEmpty) return const Center(child: Text('Aucun événement disponible'));
 
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionTitle(context, 'Dernier shotgun en cours'),
-                ShotgunBanner(
-                  title: mainEvent['nom'] ?? 'Événement',
-                  description: mainEvent['description'] ?? '',
-                  date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
-                  hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
-                  imageUrl: 'assets/soiree.png',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EventDetailView(
-                          eventId: mainEventId,
-                          eventData: mainEvent,
+            final myInscriptionsDocs = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateHeure = data['dateHeureEvent'] as Timestamp?;
+              return myRegisteredIds.contains(doc.id) &&
+                  dateHeure != null &&
+                  dateHeure.toDate().isAfter(now);
+            }).toList();
+
+            final headlinerDocs = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateHeure = data['dateHeureEvent'] as Timestamp?;
+              return dateHeure != null && dateHeure.toDate().isAfter(now);
+            }).toList();
+
+            final activeNoveltyDocs = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateHeure = data['dateHeureEvent'] as Timestamp?;
+              return dateHeure != null && dateHeure.toDate().isAfter(now);
+            }).toList();
+
+            List<QueryDocumentSnapshot> noveltyDocs = List.from(activeNoveltyDocs);
+            noveltyDocs.sort((a, b) {
+              final dataA = a.data() as Map<String, dynamic>;
+              final dataB = b.data() as Map<String, dynamic>;
+              final dateA = dataA['dateOuvertureBilletterie'] as Timestamp?;
+              final dateB = dataB['dateOuvertureBilletterie'] as Timestamp?;
+              if (dateA == null || dateB == null) return 0;
+              return dateB.compareTo(dateA);
+            });
+            if (noveltyDocs.length > 10) {
+              noveltyDocs = noveltyDocs.sublist(0, 10);
+            }
+
+            final upcomingEvents = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateHeure = data['dateHeureEvent'] as Timestamp?;
+              return dateHeure != null && dateHeure.toDate().isAfter(now);
+            }).toList();
+
+            upcomingEvents.sort((a, b) {
+              final dateA = (a.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
+              final dateB = (b.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
+              return dateA.compareTo(dateB);
+            });
+
+            final mainEventDoc = upcomingEvents.isNotEmpty ? upcomingEvents.first : allDocs.first;
+            final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
+
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle(context, 'Dernier shotgun en cours'),
+                  ShotgunBanner(
+                    title: mainEvent['nom'] ?? 'Événement',
+                    description: mainEvent['description'] ?? '',
+                    date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
+                    hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
+                    imageUrl: 'assets/soiree.png',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EventDetailView(
+                            eventId: mainEventDoc.id,
+                            eventData: mainEvent,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
 
-                _buildSectionTitle(context, 'Vos inscriptions'),
-                _buildHorizontalEventList(docs),
+                  _buildSectionTitle(context, 'Vos inscriptions'),
+                  myInscriptionsDocs.isEmpty
+                      ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Text("Vous n'avez pas encore de réservations 🎫",
+                        style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  )
+                      : _buildHorizontalEventList(myInscriptionsDocs),
 
-                _buildSectionTitle(context, 'En tête d’affiche'),
-                _buildHorizontalEventList(docs),
+                  _buildSectionTitle(context, 'En tête d’affiche'),
+                  headlinerDocs.isEmpty
+                      ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Text("Plus aucun événement disponible pour le moment 🛑",
+                        style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  )
+                      : _buildHorizontalEventList(headlinerDocs),
 
-                _buildSectionTitle(context, 'Nouveautés'),
-                _buildHorizontalEventList(docs),
+                  _buildSectionTitle(context, 'Nouveautés'),
+                  noveltyDocs.isEmpty
+                      ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                    child: Text("Aucune nouveauté récente.",
+                        style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  )
+                      : _buildHorizontalEventList(noveltyDocs),
 
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -214,7 +280,6 @@ class _HomeContent extends StatelessWidget {
         itemBuilder: (context, index) {
           final doc = docs[index];
           final event = doc.data() as Map<String, dynamic>;
-          final eventId = doc.id; // Récupération de l'ID réel du document
 
           return ShotgunItem(
             title: event['nom'] ?? 'Événement',
@@ -226,7 +291,7 @@ class _HomeContent extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (context) => EventDetailView(
-                    eventId: eventId,
+                    eventId: doc.id,
                     eventData: event,
                   ),
                 ),
