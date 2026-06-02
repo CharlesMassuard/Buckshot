@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
+// Services
+import '../services/user_service.dart';
+import '../services/event_service.dart';
+
+// Widgets
 import '../widgets/shotgun_banner.dart';
 import '../widgets/shotgun_item.dart';
 import '../widgets/barre_de_navigation.dart';
+
+// Vues
 import 'event_detail_view.dart';
 import 'search_view.dart';
 import 'profile_view.dart';
@@ -21,6 +29,7 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   int _currentIndex = 0;
+  final UserService _userService = UserService();
 
   final List<Widget> _allPages = [
     const _HomeContent(),
@@ -34,35 +43,32 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
-      builder: (context, snapshot) {
-        String role = 'USER';
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final userData = snapshot.data!.data() as Map<String, dynamic>?;
-          role = userData?['role'] ?? 'USER';
-        }
-
+    return StreamBuilder<String>(
+      stream: _userService.getUserRole(user?.uid),
+      builder: (context, roleSnapshot) {
+        final role = roleSnapshot.data ?? 'USER';
         final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
 
+        // Reconstruction dynamique des pages selon les droits
         List<Widget> activePages = [
           _allPages[0],
           _allPages[1],
         ];
 
         if (showScanner) {
-          activePages.add(_allPages[2]);
+          activePages.add(_allPages[2]); // StaffView 
         }
 
         activePages.addAll([
-          _allPages[3],
-          _allPages[4],
+          _allPages[3], // MyTicketsView
+          _allPages[4], // ProfileView
         ]);
 
         if (_currentIndex >= activePages.length) {
           _currentIndex = activePages.length - 1;
         }
 
+        // Reconstruction dynamique des items de la barre de navigation
         List<NavItem> navItems = [
           NavItem(icon: Icons.home_outlined, label: 'Accueil', onTap: () {}),
           NavItem(icon: Icons.search, label: 'Recherche', onTap: () {}),
@@ -117,52 +123,40 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
+    final eventService = EventService();
     final now = DateTime.now();
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('billets')
-          .where('userId', isEqualTo: user?.uid)
-          .snapshots(),
+    return StreamBuilder<Set<String>>(
+      stream: eventService.getMyRegisteredEventIds(user?.uid),
       builder: (context, billetSnapshot) {
-        final Set<String> myRegisteredIds = billetSnapshot.hasData
-            ? billetSnapshot.data!.docs
-            .map((doc) => (doc.data() as Map<String, dynamic>)['eventId'] as String? ?? '')
-            .toSet()
-            : {};
+        final myRegisteredIds = billetSnapshot.data ?? {};
 
-        return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('events').snapshots(),
+        return StreamBuilder<List<QueryDocumentSnapshot>>(
+          stream: eventService.getAllEvents(),
           builder: (context, eventSnapshot) {
             if (eventSnapshot.hasError) return const Center(child: Text('Erreur...'));
             if (eventSnapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
             }
 
-            final allDocs = eventSnapshot.data?.docs ?? [];
+            final allDocs = eventSnapshot.data ?? [];
             if (allDocs.isEmpty) return const Center(child: Text('Aucun événement disponible'));
 
-            final myInscriptionsDocs = allDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final dateHeure = data['dateHeureEvent'] as Timestamp?;
-              return myRegisteredIds.contains(doc.id) &&
-                  dateHeure != null &&
-                  dateHeure.toDate().isAfter(now);
-            }).toList();
-
-            final headlinerDocs = allDocs.where((doc) {
+            // --- Filtrage : Uniquement les événements futurs ---
+            final upcomingEvents = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
               return dateHeure != null && dateHeure.toDate().isAfter(now);
             }).toList();
 
-            final activeNoveltyDocs = allDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final dateHeure = data['dateHeureEvent'] as Timestamp?;
-              return dateHeure != null && dateHeure.toDate().isAfter(now);
-            }).toList();
+            // --- 1. Vos Inscriptions ---
+            final myInscriptionsDocs = upcomingEvents.where((doc) => myRegisteredIds.contains(doc.id)).toList();
 
-            List<QueryDocumentSnapshot> noveltyDocs = List.from(activeNoveltyDocs);
+            // --- 2. En tête d'affiche ---
+            final headlinerDocs = List<QueryDocumentSnapshot>.from(upcomingEvents);
+
+            // --- 3. Nouveautés ---
+            List<QueryDocumentSnapshot> noveltyDocs = List.from(upcomingEvents);
             noveltyDocs.sort((a, b) {
               final dataA = a.data() as Map<String, dynamic>;
               final dataB = b.data() as Map<String, dynamic>;
@@ -175,19 +169,15 @@ class _HomeContent extends StatelessWidget {
               noveltyDocs = noveltyDocs.sublist(0, 10);
             }
 
-            final upcomingEvents = allDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final dateHeure = data['dateHeureEvent'] as Timestamp?;
-              return dateHeure != null && dateHeure.toDate().isAfter(now);
-            }).toList();
-
-            upcomingEvents.sort((a, b) {
+            // --- 4. Bannière principale ---
+            List<QueryDocumentSnapshot> sortedUpcoming = List.from(upcomingEvents);
+            sortedUpcoming.sort((a, b) {
               final dateA = (a.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
               final dateB = (b.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
               return dateA.compareTo(dateB);
             });
 
-            final mainEventDoc = upcomingEvents.isNotEmpty ? upcomingEvents.first : allDocs.first;
+            final mainEventDoc = sortedUpcoming.isNotEmpty ? sortedUpcoming.first : allDocs.first;
             final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
 
             return SafeArea(
@@ -196,6 +186,7 @@ class _HomeContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // --- Header (Logo + Bouton Favoris) ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: Row(
@@ -206,15 +197,10 @@ class _HomeContent extends StatelessWidget {
                             height: 40,
                             fit: BoxFit.contain,
                           ),
-                          // Écoute en temps réel les favoris pour modifier l'icône du bouton
-                          StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('reminders')
-                                .where('userId', isEqualTo: user?.uid)
-                                .snapshots(),
+                          StreamBuilder<bool>(
+                            stream: eventService.hasFavorites(user?.uid),
                             builder: (context, remindersSnapshot) {
-                              final bool hasFavorites = remindersSnapshot.hasData &&
-                                  remindersSnapshot.data!.docs.isNotEmpty;
+                              final bool hasFavorites = remindersSnapshot.data ?? false;
 
                               return IconButton(
                                 icon: Icon(
@@ -237,6 +223,7 @@ class _HomeContent extends StatelessWidget {
                       ),
                     ),
 
+                    // --- Bannière principale ---
                     _buildSectionTitle(context, 'Dernier shotgun en cours'),
                     ShotgunBanner(
                       title: mainEvent['nom'] ?? 'Événement',
@@ -257,31 +244,40 @@ class _HomeContent extends StatelessWidget {
                       },
                     ),
 
+                    // --- Vos Inscriptions ---
                     _buildSectionTitle(context, 'Vos inscriptions'),
                     myInscriptionsDocs.isEmpty
                         ? const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Text("Vous n'avez pas encore de réservations 🎫",
-                          style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    )
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text(
+                              "Vous n'avez pas encore de réservations 🎫",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
                         : _buildHorizontalEventList(myInscriptionsDocs),
 
+                    // --- En tête d'affiche ---
                     _buildSectionTitle(context, 'En tête d’affiche'),
                     headlinerDocs.isEmpty
                         ? const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Text("Plus aucun événement disponible pour le moment 🛑",
-                          style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    )
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text(
+                              "Plus aucun événement disponible pour le moment 🛑",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
                         : _buildHorizontalEventList(headlinerDocs),
 
+                    // --- Nouveautés ---
                     _buildSectionTitle(context, 'Nouveautés'),
                     noveltyDocs.isEmpty
                         ? const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Text("Aucune nouveauté récente.",
-                          style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    )
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text(
+                              "Aucune nouveauté récente.",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
                         : _buildHorizontalEventList(noveltyDocs),
 
                     const SizedBox(height: 24),
