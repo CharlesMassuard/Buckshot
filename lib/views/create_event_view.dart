@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:buckshot/models/event_model.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:buckshot/BuckshotTheme.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -250,7 +249,11 @@ class _CreateEventViewState extends State<CreateEventView> {
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), width: 1),
               boxShadow: [
-                BoxShadow(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15), blurRadius: 25, spreadRadius: 1),
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(77),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
               ],
             ),
             child: Padding(
