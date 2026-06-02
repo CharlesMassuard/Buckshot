@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:buckshot/models/event_model.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:buckshot/BuckshotTheme.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
@@ -242,21 +243,15 @@ class _CreateEventViewState extends State<CreateEventView> {
         padding: const EdgeInsets.all(16.0),
         child: Center(
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).colorScheme.primary,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
               color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), width: 1),
+              boxShadow: [
+                BoxShadow(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15), blurRadius: 25, spreadRadius: 1),
+              ],
             ),
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -268,23 +263,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                     controller: _titleController,
                     decoration: InputDecoration(
                       labelText: "Titre de l'événement",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
@@ -295,32 +281,23 @@ class _CreateEventViewState extends State<CreateEventView> {
                     maxLines: 5,
                     decoration: InputDecoration(
                       labelText: "Description",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
                   // --- Date et heure de début ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure de début",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -331,11 +308,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   const SizedBox(height: 16),
 
                   // --- Date et heure de fin ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure de fin",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -346,11 +323,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   const SizedBox(height: 16),
 
                   // --- Date et heure d'ouverture du shotgun ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure d'ouverture du shotgun",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -361,11 +338,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   const SizedBox(height: 16),
 
                   // --- Date et heure de fermeture du shotgun ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure de fermeture du shotgun",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -380,23 +357,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                     controller: _locationController,
                     decoration: InputDecoration(
                       labelText: "Lieu de l'événement",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
@@ -406,23 +374,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: "Nombre de places",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
