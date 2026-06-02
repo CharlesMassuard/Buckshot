@@ -102,7 +102,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -133,7 +133,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: colors.primary.withOpacity(0.4),
+                              color: colors.primary.withValues(alpha: 0.4),
                               blurRadius: 25,
                               spreadRadius: 2,
                             ),
