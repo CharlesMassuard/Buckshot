@@ -243,7 +243,7 @@ class _HomeContent extends StatelessWidget {
                       description: mainEvent['description'] ?? '',
                       date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
                       hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
-                      imageUrl: 'assets/soiree.png',
+                      imageUrl: mainEvent['image'] ?? 'assets/soiree.png',
                       onTap: () {
                         Navigator.push(
                           context,
@@ -326,7 +326,7 @@ class _HomeContent extends StatelessWidget {
             title: event['nom'] ?? 'Événement',
             date: _formatDate(event['dateHeureEvent'] as Timestamp?),
             hours: _formatHours(event['dateHeureEvent'] as Timestamp?),
-            imageUrl: 'assets/soiree.png',
+            imageUrl: event['image'] ?? 'assets/soiree.png',
             onTap: () {
               Navigator.push(
                 context,
