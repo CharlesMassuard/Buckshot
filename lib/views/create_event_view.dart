@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:buckshot/models/event_model.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:buckshot/BuckshotTheme.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -210,7 +209,7 @@ class _CreateEventViewState extends State<CreateEventView> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                  color: Theme.of(context).colorScheme.primary.withAlpha(77),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
