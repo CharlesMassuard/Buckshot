@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 
 class ShotgunBanner extends StatelessWidget {
@@ -10,7 +11,7 @@ class ShotgunBanner extends StatelessWidget {
 
   final double height;
   final double? width;
-  final VoidCallback? onTap; // Ajout du callback de clic
+  final VoidCallback? onTap;
 
   const ShotgunBanner({
     super.key,
@@ -23,6 +24,38 @@ class ShotgunBanner extends StatelessWidget {
     this.width,
     this.onTap,
   });
+
+  Widget _buildImage() {
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
+
+    if (imageUrl.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(imageUrl),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+        );
+      } catch (e) {
+        return _buildPlaceholder();
+      }
+    }
+
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder() {
+    return Image.asset(
+      'assets/soiree.png',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[900]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,22 +72,16 @@ class ShotgunBanner extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap, // Utilisation du onTap dynamique
+            onTap: onTap,
             child: Stack(
               children: [
                 Positioned.fill(
                   child: Container(color: Colors.transparent),
                 ),
 
-                // 1. L'IMAGE DE FOND (NETTE)
+                // 1. L'IMAGE DE FOND (Asset ou Base64)
                 Positioned.fill(
-                  child: Image.asset(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(color: Colors.grey[900]);
-                    },
-                  ),
+                  child: _buildImage(),
                 ),
 
                 // 2. LA ZONE DE FLOU PROGRESSIVE
@@ -66,20 +93,20 @@ class ShotgunBanner extends StatelessWidget {
                   child: ShaderMask(
                     blendMode: BlendMode.dstIn,
                     shaderCallback: (bounds) {
-                      return LinearGradient(
+                      return const LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: const [
+                        colors: [
                           Colors.transparent,
                           Colors.black,
                         ],
-                        stops: const [0.0, 0.2],
+                        stops: [0.0, 0.2],
                       ).createShader(bounds);
                     },
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
                       child: Container(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                       ),
                     ),
                   ),

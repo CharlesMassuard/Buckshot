@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
 import '../widgets/barre_de_recherche.dart';
 import 'event_detail_view.dart';
 
@@ -38,6 +39,38 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
   String _formatFullDate(Timestamp? timestamp) {
     if (timestamp == null) return 'Date inconnue';
     return DateFormat('EEE dd MMM yyyy', 'fr_FR').format(timestamp.toDate());
+  }
+
+  Widget _buildEventImage(String base64Image) {
+    if (base64Image.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(base64Image),
+          width: 90,
+          height: 75,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildAssetPlaceholder(),
+        );
+      } catch (e) {
+        return _buildAssetPlaceholder();
+      }
+    }
+    return _buildAssetPlaceholder();
+  }
+
+  Widget _buildAssetPlaceholder() {
+    return Image.asset(
+      'assets/soiree.png',
+      width: 90,
+      height: 75,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        width: 90,
+        height: 75,
+        color: Colors.grey[900],
+        child: const Icon(Icons.image, color: Colors.white54),
+      ),
+    );
   }
 
   @override
@@ -143,11 +176,12 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
       itemBuilder: (context, index) {
         final doc = tabDocs[index];
         final event = doc.data() as Map<String, dynamic>;
-        final eventId = doc.id; // Récupération de l'ID réel du document
+        final eventId = doc.id;
 
         final title = event['nom'] ?? 'Événement';
         final lieu = event['lieu'] ?? 'Lieu non spécifié';
         final dateHeure = event['dateHeureEvent'] as Timestamp?;
+        final eventImageBase64 = event['image'] ?? '';
 
         return InkWell(
           onTap: () {
@@ -168,12 +202,7 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    'assets/soiree.png',
-                    width: 90,
-                    height: 75,
-                    fit: BoxFit.cover,
-                  ),
+                  child: _buildEventImage(eventImageBase64),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
+import 'dart:convert';
 import '../services/notification_service.dart';
 
 class EventDetailView extends StatefulWidget {
@@ -324,6 +325,29 @@ class _EventDetailViewState extends State<EventDetailView> {
     );
   }
 
+  Widget _buildBannerImage(String base64Image) {
+    if (base64Image.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(base64Image),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildAssetPlaceholder(),
+        );
+      } catch (e) {
+        return _buildAssetPlaceholder();
+      }
+    }
+    return _buildAssetPlaceholder();
+  }
+
+  Widget _buildAssetPlaceholder() {
+    return Image.asset(
+      'assets/soiree.png',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(color: const Color(0xFF0B0914)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.eventData['nom'] ?? 'Événement';
@@ -350,12 +374,14 @@ class _EventDetailViewState extends State<EventDetailView> {
           int placesRestantes = widget.eventData['placesRestantes'] ?? 0;
           Timestamp? dateHeure = widget.eventData['dateHeureEvent'] as Timestamp?;
           Timestamp? dateOuvertureBilletterie = widget.eventData['dateOuvertureBilletterie'] as Timestamp?;
+          String eventImageBase64 = widget.eventData['image'] ?? '';
 
           if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
             final freshData = eventSnapshot.data!.data() as Map<String, dynamic>;
             placesRestantes = freshData['placesRestantes'] ?? placesRestantes;
             dateHeure = freshData['dateHeureEvent'] as Timestamp? ?? dateHeure;
             dateOuvertureBilletterie = freshData['dateOuvertureBilletterie'] as Timestamp? ?? dateOuvertureBilletterie;
+            eventImageBase64 = freshData['image'] ?? eventImageBase64;
           }
 
           final now = DateTime.now();
@@ -417,12 +443,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                             Container(
                               height: 250,
                               width: double.infinity,
-                              decoration: const BoxDecoration(
-                                image: DecorationImage(
-                                  image: AssetImage('assets/soiree.png'),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
+                              child: _buildBannerImage(eventImageBase64),
                             ),
                             Padding(
                               padding: const EdgeInsets.all(20.0),
