@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'login_view.dart';
 import '../widgets/PrivacyCheckbox.dart';
+import '../widgets/BuckshotInputField.dart'; 
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -13,8 +14,11 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final _usernameController = TextEditingController(); // Utilisé pour le Prénom
-  final _lastNameController = TextEditingController();  // Utilisé pour le Nom
+  // 1. Clé du formulaire
+  final _formKey = GlobalKey<FormState>();
+
+  final _usernameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
@@ -36,36 +40,26 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _signUp() async {
-    final username = _usernameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirm = _confirmController.text.trim();
+    if (!_formKey.currentState!.validate()) {
+      return; 
+    }
 
-    // Vérification que TOUS les champs sont remplis
-    if (username.isEmpty || lastName.isEmpty || email.isEmpty || password.isEmpty || confirm.isEmpty) {
-      _showError("Remplis tout, on n'est pas aux devinettes ici ! 📝");
-      return;
-    }
-    if (password != confirm) {
-      _showError("Tes mots de passe ne sont pas jumeaux... 👯‍♂️");
-      return;
-    }
     if (!_hasAcceptedPrivacy) {
       _showError("Tu dois accepter la politique de confidentialité pour continuer ! 🕵️‍♂️");
       return;
     }
 
+    final username = _usernameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
     setState(() => _isLoading = true);
     try {
-      // 1. Création du compte dans l'authentification Firebase
       await _authService.createUserWithEmailAndPassword(email, password);
-
-      // 2. Récupération de l'UID généré pour l'utilisateur actuellement connecté
       final currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser != null) {
-        // 3. Insertion dans Firestore avec les vraies données
         await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).set({
           'uid': currentUser.uid,
           'prenom': username,
@@ -75,7 +69,6 @@ class _RegisterPageState extends State<RegisterPage> {
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        // 4. Redirection vers la page de connexion
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -85,7 +78,6 @@ class _RegisterPageState extends State<RegisterPage> {
       } else {
         _showError("Une erreur est survenue lors de la récupération de l'utilisateur. ❌");
       }
-
     } catch (e) {
       if (mounted) _showError(e.toString());
     } finally {
@@ -146,64 +138,101 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                           ],
                         ),
-                        child: Column(
-                          children: [
-                            BuckshotInputField(controller: _usernameController, hintText: 'Prénom'),
-                            const SizedBox(height: 16),
-                            BuckshotInputField(controller: _lastNameController, hintText: 'Nom'),
-                            const SizedBox(height: 16),
-                            BuckshotInputField(controller: _emailController, hintText: 'Adresse mail'),
-                            const SizedBox(height: 16),
-                            BuckshotInputField(
-                              controller: _passwordController,
-                              hintText: 'Mot de passe',
-                              isPassword: true,
-                              isObscured: _isObscured,
-                              onToggleObscure: () => setState(() => _isObscured = !_isObscured),
-                            ),
-                            const SizedBox(height: 16),
-                            BuckshotInputField(
-                              controller: _confirmController,
-                              hintText: 'Confirmer le mot de passe',
-                              isPassword: true,
-                              isObscured: _isConfirmObscured,
-                              onToggleObscure: () => setState(() => _isConfirmObscured = !_isConfirmObscured),
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            
-                            PrivacyCheckbox(
-                              isChecked: _hasAcceptedPrivacy,
-                              onChanged: (value) {
-                                setState(() {
-                                  _hasAcceptedPrivacy = value ?? false;
-                                });
-                              },
-                            ),
-                            
-                            const SizedBox(height: 24),
-                            _buildButton(
-                              context: context,
-                              label: 'Créer mon compte',
-                              icon: Icons.rocket_launch_outlined,
-                              onPressed: _isLoading ? null : _signUp,
-                              isLoading: _isLoading,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildDivider(theme),
-                            const SizedBox(height: 20),
-                            _buildOutlinedButton(
-                              context: context,
-                              label: 'Déjà inscrit ? Connexion',
-                              icon: Icons.login_outlined,
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => const LoginView()),
-                                );
-                              },
-                            ),
-                          ],
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              BuckshotInputField(
+                                controller: _usernameController, 
+                                hintText: 'Prénom',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) return "Le prénom est requis.";
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              BuckshotInputField(
+                                controller: _lastNameController, 
+                                hintText: 'Nom',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) return "Le nom est requis.";
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              BuckshotInputField(
+                                controller: _emailController, 
+                                hintText: 'Adresse mail',
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) return "L'email est requis.";
+                                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                  if (!emailRegex.hasMatch(value.trim())) return "L'email n'est pas valide.";
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              BuckshotInputField(
+                                controller: _passwordController,
+                                hintText: 'Mot de passe',
+                                isPassword: true,
+                                isObscured: _isObscured,
+                                onToggleObscure: () => setState(() => _isObscured = !_isObscured),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return "Le mot de passe est requis.";
+                                  if (value.length < 8) return "Minimum 8 caractères.";
+                                  if (!RegExp(r'[A-Z]').hasMatch(value)) return "Il manque une majuscule.";
+                                  if (!RegExp(r'[a-z]').hasMatch(value)) return "Il manque une minuscule.";
+                                  if (!RegExp(r'[0-9]').hasMatch(value)) return "Il manque un chiffre.";
+                                  if (!RegExp(r'[!@#\$&*~%]').hasMatch(value)) return "Il manque un caractère spécial (!@#\$&*~%).";
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              BuckshotInputField(
+                                controller: _confirmController,
+                                hintText: 'Confirmer le mot de passe',
+                                isPassword: true,
+                                isObscured: _isConfirmObscured,
+                                onToggleObscure: () => setState(() => _isConfirmObscured = !_isConfirmObscured),
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return "Confirme ton mot de passe.";
+                                  if (value != _passwordController.text) return "Les mots de passe ne correspondent pas.";
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              PrivacyCheckbox(
+                                isChecked: _hasAcceptedPrivacy,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _hasAcceptedPrivacy = value ?? false;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 24),
+                              _buildButton(
+                                context: context,
+                                label: 'Créer mon compte',
+                                icon: Icons.rocket_launch_outlined,
+                                onPressed: _isLoading ? null : _signUp,
+                                isLoading: _isLoading,
+                              ),
+                              const SizedBox(height: 20),
+                              _buildDivider(theme),
+                              const SizedBox(height: 20),
+                              _buildOutlinedButton(
+                                context: context,
+                                label: 'Déjà inscrit ? Connexion',
+                                icon: Icons.login_outlined,
+                                onPressed: () {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LoginView()),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const Spacer(),
