@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../services/scanner_service.dart';
 
 class ScannerView extends StatefulWidget {
   final String eventId;
@@ -18,19 +19,22 @@ class ScannerView extends StatefulWidget {
   State<ScannerView> createState() => _ScannerViewState();
 }
 
-enum ScanResultState { none, success, invalid, alreadyScanned, wrongEvent }
-
 class _ScannerViewState extends State<ScannerView> {
   final MobileScannerController cameraController = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
-  
-  bool _isProcessing = false;
-  ScanResultState _resultState = ScanResultState.none;
-  
-  String _studentName = '';
-  String _ticketIdDisplay = '';
-  String _scanTimeDisplay = '';
+  late ScannerService _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = ScannerService(eventId: widget.eventId);
+    _controller.addListener(_onControllerContextUpdate);
+  }
+
+  void _onControllerContextUpdate() {
+    if (mounted) setState(() {});
+  }
 
   String _formatEventDate(Timestamp? timestampStart, Timestamp? timestampEnd) {
     if (timestampStart == null) return 'Date inconnue';
@@ -52,98 +56,11 @@ class _ScannerViewState extends State<ScannerView> {
     return "${formatter.format(start)} | ${formatTime(start)}";
   }
 
-  Future<void> _processQRScan(String ticketId) async {
-    if (_isProcessing || _resultState != ScanResultState.none) return;
-    setState(() {
-      _isProcessing = true;
-      _ticketIdDisplay = ticketId;
-    });
-
-    try {
-      final billetDoc = await FirebaseFirestore.instance.collection('billets').doc(ticketId).get();
-
-      if (!billetDoc.exists) {
-        setState(() {
-          _resultState = ScanResultState.invalid;
-        });
-        _startAutoResetTimer();
-        return;
-      }
-
-      final billetData = billetDoc.data()!;
-      final String ticketEventId = billetData['eventId'] ?? '';
-      final String userId = billetData['userId'] ?? '';
-      final Timestamp? existingScan = billetData['scanAt'] as Timestamp?;
-
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        final userData = userDoc.data()!;
-        final String prenom = userData['prenom'] ?? '';
-        final String nom = userData['nom'] ?? '';
-        _studentName = "$prenom $nom".trim();
-      } else {
-        _studentName = "Étudiant inconnu";
-      }
-
-      if (ticketEventId != widget.eventId) {
-        setState(() {
-          _resultState = ScanResultState.wrongEvent;
-        });
-        _startAutoResetTimer();
-        return;
-      }
-
-      if (existingScan != null) {
-        _scanTimeDisplay = DateFormat('le dd MMM yyyy à HH\'h\'mm', 'fr_FR').format(existingScan.toDate());
-        setState(() {
-          _resultState = ScanResultState.alreadyScanned;
-        });
-        _startAutoResetTimer();
-        return;
-      }
-
-      await FirebaseFirestore.instance.collection('billets').doc(ticketId).update({
-        'scanAt': FieldValue.serverTimestamp(),
-        'scannedBy': userId,
-      });
-
-      setState(() {
-        _resultState = ScanResultState.success;
-      });
-      _startAutoResetTimer();
-
-    } catch (e) {
-      setState(() {
-        _resultState = ScanResultState.invalid;
-      });
-      _startAutoResetTimer();
-    } finally {
-      setState(() {
-        _isProcessing = false;
-      });
-    }
-  }
-
-  void _startAutoResetTimer() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _resultState != ScanResultState.none) {
-        _resetScanner();
-      }
-    });
-  }
-
-  void _resetScanner() {
-    setState(() {
-      _resultState = ScanResultState.none;
-      _studentName = '';
-      _ticketIdDisplay = '';
-      _scanTimeDisplay = '';
-    });
-  }
-
   @override
   void dispose() {
     cameraController.dispose();
+    _controller.removeListener(_onControllerContextUpdate);
+    _controller.disposeController();
     super.dispose();
   }
 
@@ -193,7 +110,7 @@ class _ScannerViewState extends State<ScannerView> {
             ),
             Expanded(
               child: Center(
-                child: _resultState == ScanResultState.none
+                child: _controller.resultState == ScanResultState.none
                     ? SizedBox(
                         width: 310,
                         height: 310,
@@ -207,10 +124,10 @@ class _ScannerViewState extends State<ScannerView> {
                                   controller: cameraController,
                                   onDetect: (capture) {
                                     final List<Barcode> barcodes = capture.barcodes;
-                                    if (barcodes.isNotEmpty && !_isProcessing) {
+                                    if (barcodes.isNotEmpty && !_controller.isProcessing) {
                                       final String code = barcodes.first.rawValue ?? '';
                                       if (code.isNotEmpty) {
-                                        _processQRScan(code);
+                                        _controller.processQRScan(code);
                                       }
                                     }
                                   },
@@ -230,11 +147,11 @@ class _ScannerViewState extends State<ScannerView> {
                     : _buildResultCard(),
               ),
             ),
-            if (_resultState != ScanResultState.none)
+            if (_controller.resultState != ScanResultState.none)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
                 child: OutlinedButton(
-                  onPressed: _resetScanner,
+                  onPressed: _controller.resetScanner,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFFF007F), width: 2),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -259,7 +176,7 @@ class _ScannerViewState extends State<ScannerView> {
                 ),
               )
             else
-              const SizedBox(height: 94), // Maintient l'espace pour éviter un saut d'UI
+              const SizedBox(height: 94),
           ],
         ),
       ),
@@ -267,12 +184,9 @@ class _ScannerViewState extends State<ScannerView> {
   }
 
   Widget _buildResultCard() {
-    Color glowColor;
-    if (_resultState == ScanResultState.success) {
-      glowColor = const Color(0xFF39FF14);
-    } else {
-      glowColor = const Color(0xFFE63946);
-    }
+    Color glowColor = (_controller.resultState == ScanResultState.success) 
+        ? const Color(0xFF39FF14) 
+        : const Color(0xFFE63946);
 
     return Container(
       width: 310,
@@ -292,26 +206,26 @@ class _ScannerViewState extends State<ScannerView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_resultState == ScanResultState.success) ...[
-            _buildInfoRow(_studentName),
+          if (_controller.resultState == ScanResultState.success) ...[
+            _buildInfoRow(_controller.studentName),
             const SizedBox(height: 16),
-            _buildInfoRow(_ticketIdDisplay),
+            _buildInfoRow(_controller.ticketIdDisplay),
             const SizedBox(height: 16),
             _buildStatusRow("Accès autorisé", const Color(0xFF39FF14)),
-          ] else if (_resultState == ScanResultState.invalid) ...[
+          ] else if (_controller.resultState == ScanResultState.invalid) ...[
             const SizedBox(height: 20),
             _buildStatusRow("Billet invalide", const Color(0xFFE63946)),
             const SizedBox(height: 20),
-          ] else if (_resultState == ScanResultState.alreadyScanned) ...[
-            _buildInfoRow(_studentName),
+          ] else if (_controller.resultState == ScanResultState.alreadyScanned) ...[
+            _buildInfoRow(_controller.studentName),
             const SizedBox(height: 16),
-            _buildInfoRow(_ticketIdDisplay),
+            _buildInfoRow(_controller.ticketIdDisplay),
             const SizedBox(height: 16),
-            _buildStatusRowWithSub("Billet déjà scanné", _scanTimeDisplay, const Color(0xFFE63946)),
-          ] else if (_resultState == ScanResultState.wrongEvent) ...[
-            _buildInfoRow(_studentName),
+            _buildStatusRowWithSub("Billet déjà scanné", _controller.scanTimeDisplay, const Color(0xFFE63946)),
+          ] else if (_controller.resultState == ScanResultState.wrongEvent) ...[
+            _buildInfoRow(_controller.studentName),
             const SizedBox(height: 16),
-            _buildInfoRow(_ticketIdDisplay),
+            _buildInfoRow(_controller.ticketIdDisplay),
             const SizedBox(height: 16),
             _buildStatusRow("Billet pour un autre événement", const Color(0xFFE63946)),
           ]
