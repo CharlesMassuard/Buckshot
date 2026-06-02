@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../widgets/shotgun_banner.dart';
 import '../widgets/shotgun_item.dart';
 import '../widgets/barre_de_navigation.dart';
+import '../services/event_service.dart';
+import '../services/user_service.dart';
 import 'event_detail_view.dart';
 import 'search_view.dart';
 import 'profile_view.dart';
@@ -20,6 +22,7 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   int _currentIndex = 0;
+  final UserService _userService = UserService();
 
   final List<Widget> _allPages = [
     const _HomeContent(),
@@ -34,7 +37,7 @@ class _HomeViewState extends State<HomeView> {
     final user = FirebaseAuth.instance.currentUser;
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+      stream: _userService.getUserSnapshot(user?.uid),
       builder: (context, snapshot) {
         String role = 'USER';
         if (snapshot.hasData && snapshot.data!.exists) {
@@ -44,39 +47,73 @@ class _HomeViewState extends State<HomeView> {
 
         final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
 
+        // Reconstruction de l'ordre des pages en fonction du rôle
         List<Widget> activePages = [
-          _allPages[0],
-          _allPages[1],
+          _allPages[0], // Accueil
+          _allPages[1], // Recherche
         ];
 
         if (showScanner) {
-          activePages.add(_allPages[2]);
+          activePages.add(_allPages[2]); // Vue Scanner / Staff
         }
 
         activePages.addAll([
-          _allPages[3],
-          _allPages[4],
+          _allPages[3], // Billets
+          _allPages[4], // Profil
         ]);
 
+        // Sécurité contre les changements de rôle à la volée pour éviter l'index out of bounds
         if (_currentIndex >= activePages.length) {
           _currentIndex = activePages.length - 1;
         }
 
+        // Configuration dynamique des index pour la barre de navigation
+        int itemIndex = 0;
         List<NavItem> navItems = [
-          NavItem(icon: Icons.home_outlined, label: 'Accueil', onTap: () {}),
-          NavItem(icon: Icons.search, label: 'Recherche', onTap: () {}),
+          NavItem(
+            icon: Icons.home_outlined, 
+            label: 'Accueil', 
+            onTap: () => setState(() => _currentIndex = 0),
+          ),
+          NavItem(
+            icon: Icons.search, 
+            label: 'Recherche', 
+            onTap: () => setState(() => _currentIndex = 1),
+          ),
         ];
 
+        itemIndex = 2;
+
         if (showScanner) {
+          final targetIndex = itemIndex;
           navItems.add(
-            NavItem(icon: Icons.qr_code_scanner, label: 'Scanner', onTap: () {}),
+            NavItem(
+              icon: Icons.qr_code_scanner, 
+              label: 'Scanner', 
+              onTap: () => setState(() => _currentIndex = targetIndex),
+            ),
           );
+          itemIndex++;
         }
 
-        navItems.addAll([
-          NavItem(icon: Icons.confirmation_number_outlined, label: 'Billets', onTap: () {}),
-          NavItem(icon: Icons.account_circle_outlined, label: 'Profil', onTap: () {}),
-        ]);
+        final ticketsIndex = itemIndex;
+        navItems.add(
+          NavItem(
+            icon: Icons.confirmation_number_outlined, 
+            label: 'Billets', 
+            onTap: () => setState(() => _currentIndex = ticketsIndex),
+          ),
+        );
+        itemIndex++;
+
+        final profileIndex = itemIndex;
+        navItems.add(
+          NavItem(
+            icon: Icons.account_circle_outlined, 
+            label: 'Profil', 
+            onTap: () => setState(() => _currentIndex = profileIndex),
+          ),
+        );
 
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surface,
@@ -117,21 +154,19 @@ class _HomeContent extends StatelessWidget {
     final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
     final now = DateTime.now();
+    final EventService eventService = EventService();
 
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('billets')
-          .where('userId', isEqualTo: user?.uid)
-          .snapshots(),
+      stream: eventService.getUserTickets(user?.uid),
       builder: (context, billetSnapshot) {
         final Set<String> myRegisteredIds = billetSnapshot.hasData
             ? billetSnapshot.data!.docs
-            .map((doc) => (doc.data() as Map<String, dynamic>)['eventId'] as String? ?? '')
-            .toSet()
+                .map((doc) => (doc.data() as Map<String, dynamic>)['eventId'] as String? ?? '')
+                .toSet()
             : {};
 
         return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('events').snapshots(),
+          stream: eventService.getEventsSnapshot(),
           builder: (context, eventSnapshot) {
             if (eventSnapshot.hasError) return const Center(child: Text('Erreur...'));
             if (eventSnapshot.connectionState == ConnectionState.waiting) {
@@ -141,6 +176,7 @@ class _HomeContent extends StatelessWidget {
             final allDocs = eventSnapshot.data?.docs ?? [];
             if (allDocs.isEmpty) return const Center(child: Text('Aucun événement disponible'));
 
+            // Filtre des inscriptions personnelles actives
             final myInscriptionsDocs = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
@@ -149,12 +185,14 @@ class _HomeContent extends StatelessWidget {
                   dateHeure.toDate().isAfter(now);
             }).toList();
 
+            // Filtre Tête d'affiche
             final headlinerDocs = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
               return dateHeure != null && dateHeure.toDate().isAfter(now);
             }).toList();
 
+            // Filtre et Tri des Nouveautés
             final activeNoveltyDocs = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
@@ -174,6 +212,7 @@ class _HomeContent extends StatelessWidget {
               noveltyDocs = noveltyDocs.sublist(0, 10);
             }
 
+            // Calcul de l'événement principal pour la bannière
             final upcomingEvents = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
@@ -195,6 +234,7 @@ class _HomeContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // --- App Bar / Logo Section ---
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: Row(
@@ -206,17 +246,14 @@ class _HomeContent extends StatelessWidget {
                             fit: BoxFit.contain,
                           ),
                           IconButton(
-                            icon: Icon(
-                              Icons.favorite_border_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
+                            icon: const Icon(Icons.favorite_border_rounded, color: Colors.white, size: 28),
                             onPressed: () {},
                           ),
                         ],
                       ),
                     ),
 
+                    // --- Bannière Principale ---
                     _buildSectionTitle(context, 'Dernier shotgun en cours'),
                     ShotgunBanner(
                       title: mainEvent['nom'] ?? 'Événement',
@@ -237,31 +274,29 @@ class _HomeContent extends StatelessWidget {
                       },
                     ),
 
+                    // --- Sections horizontales imbriquées ---
                     _buildSectionTitle(context, 'Vos inscriptions'),
                     myInscriptionsDocs.isEmpty
                         ? const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Text("Vous n'avez pas encore de réservations 🎫",
-                          style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    )
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text("Vous n'avez pas encore de réservations 🎫", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          )
                         : _buildHorizontalEventList(myInscriptionsDocs),
 
                     _buildSectionTitle(context, 'En tête d’affiche'),
                     headlinerDocs.isEmpty
                         ? const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Text("Plus aucun événement disponible pour le moment 🛑",
-                          style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    )
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text("Plus aucun événement disponible pour le moment 🛑", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          )
                         : _buildHorizontalEventList(headlinerDocs),
 
                     _buildSectionTitle(context, 'Nouveautés'),
                     noveltyDocs.isEmpty
                         ? const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Text("Aucune nouveauté récente.",
-                          style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    )
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text("Aucune nouveauté récente.", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          )
                         : _buildHorizontalEventList(noveltyDocs),
 
                     const SizedBox(height: 24),
