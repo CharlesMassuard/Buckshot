@@ -10,18 +10,25 @@ import 'views/login_view.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
+
+  bool firebaseInitialized = false;
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    firebaseInitialized = true;
   } catch (e) {
     debugPrint('Firebase non initialisé (ex: si Anton lance sur Linux desktop XD ): $e');
+    firebaseInitialized = false;
   }
-  runApp(const MyApp());
+  runApp( MyApp(isFirebaseReady: firebaseInitialized));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isFirebaseReady;
+  const MyApp({super.key,required this.isFirebaseReady});
+  
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +36,19 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Buckshot',
       theme: BuckshotTheme.darkTheme,
-      home: StreamBuilder<User?>(
+      // si firebase ne se lance pas 
+      home: !isFirebaseReady
+        ? const Scaffold(
+              backgroundColor: Color(0xFF0B0914),
+              body: Center(
+                child: Text(
+                  "Mode hors-ligne (Firebase désactivé)\n",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF9D4EDD), fontSize: 18),
+                ),
+              ),
+            )
+      : StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

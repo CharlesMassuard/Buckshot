@@ -227,7 +227,7 @@ class _EventDetailViewState extends State<EventDetailView> {
 
       _showSnackBar("SHOTGUN RÉUSSI ! Ton billet est réservé. 🚀🎉", isSuccess: true);
     } catch (e) {
-      _showSnackBar("${e.toString().replaceAll('Exception: ', '')}");
+      _showSnackBar(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -272,7 +272,7 @@ class _EventDetailViewState extends State<EventDetailView> {
 
       _showSnackBar("Désinscription prise en compte. Place libérée ! 🫡👋", isSuccess: true);
     } catch (e) {
-      _showSnackBar("${e.toString().replaceAll('Exception: ', '')}");
+      _showSnackBar(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
