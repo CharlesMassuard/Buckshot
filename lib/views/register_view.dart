@@ -138,7 +138,6 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                           ],
                         ),
-                        // 3. Ajout du composant Form
                         child: Form(
                           key: _formKey,
                           child: Column(
@@ -178,7 +177,6 @@ class _RegisterPageState extends State<RegisterPage> {
                                 isPassword: true,
                                 isObscured: _isObscured,
                                 onToggleObscure: () => setState(() => _isObscured = !_isObscured),
-                                // Validation stricte du mot de passe
                                 validator: (value) {
                                   if (value == null || value.isEmpty) return "Le mot de passe est requis.";
                                   if (value.length < 8) return "Minimum 8 caractères.";
