@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:convert';
 import 'event_detail_view.dart';
 
 class TicketDetailView extends StatelessWidget {
@@ -28,13 +29,44 @@ class TicketDetailView extends StatelessWidget {
     return startStr;
   }
 
+  Widget _buildTicketImage(String base64Image) {
+    if (base64Image.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(base64Image),
+          height: 180,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildAssetPlaceholder(),
+        );
+      } catch (e) {
+        return _buildAssetPlaceholder();
+      }
+    }
+    return _buildAssetPlaceholder();
+  }
+
+  Widget _buildAssetPlaceholder() {
+    return Image.asset(
+      'assets/soiree.png',
+      height: 180,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        height: 180,
+        color: Colors.grey[300],
+        child: const Icon(Icons.image, size: 50, color: Colors.grey),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final String billetId = ticketData['billetId'] ?? '';
     final String userId = ticketData['userId'] ?? '';
     final String eventId = ticketData['eventId'] ?? '';
     final String eventNom = ticketData['eventNom'] ?? 'Événement';
-    final String eventImage = ticketData['eventImage'] ?? 'assets/soiree.png';
+    final String eventImageBase64 = ticketData['eventImage'] ?? '';
     final Timestamp? eventDate = ticketData['eventDate'] as Timestamp?;
     final Timestamp? eventDateFin = ticketData['eventDateFin'] as Timestamp?;
 
@@ -69,19 +101,7 @@ class TicketDetailView extends StatelessWidget {
                         topLeft: Radius.circular(18),
                         topRight: Radius.circular(18),
                       ),
-                      child: Image.asset(
-                        eventImage,
-                        height: 180,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 180,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image, size: 50, color: Colors.grey),
-                          );
-                        },
-                      ),
+                      child: _buildTicketImage(eventImageBase64),
                     ),
                     const SizedBox(height: 16),
                     Text(
