@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
 
 class EventDetailView extends StatefulWidget {
-  final String eventId; // Requis pour l'identification du document Firestore
+  final String eventId;
   final Map<String, dynamic> eventData;
 
   const EventDetailView({
@@ -21,15 +21,51 @@ class EventDetailView extends StatefulWidget {
 
 class _EventDetailViewState extends State<EventDetailView> {
   bool _isProcessing = false;
+  String _userRole = 'USER';
+  String _useridOrganisateur = '';
+  bool _isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserRole();
+  }
+
+  void _fetchUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists && mounted) {
+          final data = doc.data() as Map<String, dynamic>;
+          setState(() {
+            _userRole = data['role'] ?? 'USER';
+            _useridOrganisateur = data['idOrganisateur'] ?? '';
+            _isLoadingUser = false;
+          });
+          return;
+        }
+      } catch (e) {
+        debugPrint("Erreur lors de la récupération du rôle utilisateur: $e");
+      }
+    }
+    if (mounted) {
+      setState(() => _isLoadingUser = false);
+    }
+  }
 
   String _formatFullDate(Timestamp? timestamp) {
     if (timestamp == null) return 'Date inconnue';
-    return DateFormat('dd/MM/yyyy à HH\'h\'').format(timestamp.toDate());
+    return DateFormat('dd/MM/yyyy à HH\'h\'mm').format(timestamp.toDate());
+  }
+
+  String _formatSimpleDate(Timestamp? timestamp) {
+    if (timestamp == null) return 'bientôt';
+    return DateFormat('dd/MM/yyyy à HH\'h\'mm').format(timestamp.toDate());
   }
 
   String _getRandomMessage(List<Map<String, dynamic>> messagePool, String eventName) {
     int totalWeight = messagePool.fold(0, (sum, item) => sum + (item['weight'] as int));
-
     int seed = eventName.hashCode.abs() + DateTime.now().day;
     final random = Random(seed);
     int randomValue = random.nextInt(totalWeight);
@@ -87,7 +123,47 @@ class _EventDetailViewState extends State<EventDetailView> {
     return _getRandomMessage(pool, eventName);
   }
 
-  // Fonction de réservation avec gestion atomique des transactions
+  String _getNotificationMessage(String eventName) {
+    final List<Map<String, dynamic>> pool = [
+      {'text': "Tu seras notifié chef, t'inquiète même pas ! 🔔🫡", 'weight': 40},
+      {'text': "Rappel activé ! Reste à l'affût, ça va partir vite. 🏎️💨", 'weight': 40},
+      {'text': "C'est bon boss, ton réveil est branché sur le serveur ! ⏰⚡", 'weight': 35},
+      {'text': "Noté ! Ne va pas pleurer si ton téléphone vibre en plein amphi. 🤫📱", 'weight': 30},
+      {'text': "Demande reçue. Prépare tes meilleurs réflexes pour le jour J ! 🎯🕹️", 'weight': 30},
+      {'text': "Rappel programmé ! Pas d'excuse pour rater le train cette fois. 🚂🎫", 'weight': 25},
+      {'text': "Le robot du shotgun a enregistré ton blaze. À la guerre comme à la guerre ! 🤖⚔️", 'weight': 20},
+      {'text': "Pas de bégaiement prévu, on te bipe dès que les vannes s'ouvrent ! 🌊🔔", 'weight': 15},
+      {'text': "Inscrit aux alertes ! Que la puissance de ton réseau soit avec toi. 📶🙏", 'weight': 15},
+    ];
+    return _getRandomMessage(pool, eventName);
+  }
+
+  Future<void> _programmerRappel(String eventId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showSnackBar("Vous devez être connecté pour programmer un rappel ! 🔐");
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final reminderId = "${user.uid}_$eventId";
+      await FirebaseFirestore.instance.collection('reminders').doc(reminderId).set({
+        'userId': user.uid,
+        'eventId': eventId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'notified': false,
+      });
+
+      _showSnackBar("Alerte enregistrée ! Prépare tes doigts pour le shotgun. 🔔🚀", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("Erreur lors de la programmation du rappel : $e");
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _reserverPlace(String eventId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -102,6 +178,19 @@ class _EventDetailViewState extends State<EventDetailView> {
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot eventSnapshot = await transaction.get(eventRef);
+
+        if (!eventSnapshot.exists) {
+          throw Exception("L'événement n'existe pas ! ❌");
+        }
+
+        Map<String, dynamic> data = eventSnapshot.data() as Map<String, dynamic>;
+
+        Timestamp? dateOuverture = data['dateOuvertureBilletterie'] as Timestamp?;
+        if (dateOuverture != null && dateOuverture.toDate().isAfter(DateTime.now())) {
+          throw Exception("La billetterie n'est pas encore ouverte ! ⏳");
+        }
+
         final existingTicketQuery = await billetsCollection
             .where('userId', isEqualTo: user.uid)
             .where('eventId', isEqualTo: eventId)
@@ -112,13 +201,6 @@ class _EventDetailViewState extends State<EventDetailView> {
           throw Exception("Tu as déjà ton billet pour cet événement ! 🎫");
         }
 
-        DocumentSnapshot eventSnapshot = await transaction.get(eventRef);
-
-        if (!eventSnapshot.exists) {
-          throw Exception("L'événement n'existe pas ! ❌");
-        }
-
-        Map<String, dynamic> data = eventSnapshot.data() as Map<String, dynamic>;
         int currentPlaces = data['placesRestantes'] ?? 0;
         Timestamp? dateHeure = data['dateHeureEvent'] as Timestamp?;
 
@@ -130,12 +212,10 @@ class _EventDetailViewState extends State<EventDetailView> {
           throw Exception("Plus de places disponibles ! 😭");
         }
 
-        // Décrémentation
         transaction.update(eventRef, {
           'placesRestantes': currentPlaces - 1,
         });
 
-        // Ajout du billet
         DocumentReference newBilletRef = billetsCollection.doc();
         transaction.set(newBilletRef, {
           'userId': user.uid,
@@ -153,7 +233,6 @@ class _EventDetailViewState extends State<EventDetailView> {
     }
   }
 
-  // Nouvelle fonction de désinscription sécurisée par transaction
   Future<void> _seDesinscrire(String eventId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -165,7 +244,6 @@ class _EventDetailViewState extends State<EventDetailView> {
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // 1. Chercher le billet existant de l'utilisateur pour cet événement
         final ticketQuery = await billetsCollection
             .where('userId', isEqualTo: user.uid)
             .where('eventId', isEqualTo: eventId)
@@ -178,7 +256,6 @@ class _EventDetailViewState extends State<EventDetailView> {
 
         final billetDocRef = billetsCollection.doc(ticketQuery.docs.first.id);
 
-        // 2. Récupérer les informations de l'événement pour ajuster les places
         DocumentSnapshot eventSnapshot = await transaction.get(eventRef);
         if (!eventSnapshot.exists) {
           throw Exception("L'événement n'existe pas ! ❌");
@@ -187,7 +264,6 @@ class _EventDetailViewState extends State<EventDetailView> {
         Map<String, dynamic> data = eventSnapshot.data() as Map<String, dynamic>;
         int currentPlaces = data['placesRestantes'] ?? 0;
 
-        // 3. Mettre à jour : Supprimer le billet et Incrémenter la place libérée
         transaction.delete(billetDocRef);
         transaction.update(eventRef, {
           'placesRestantes': currentPlaces + 1,
@@ -217,8 +293,18 @@ class _EventDetailViewState extends State<EventDetailView> {
     final title = widget.eventData['nom'] ?? 'Événement';
     final description = widget.eventData['description'] ?? 'Aucune description.';
     final lieu = widget.eventData['lieu'] ?? 'Lieu non spécifié';
+    final idOrganisateur = widget.eventData['idOrganisateur'] ?? '';
     final capaciteMax = widget.eventData['capaciteMax'] ?? 0;
     final currentUser = FirebaseAuth.instance.currentUser;
+
+    if (_isLoadingUser) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0B0914),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD))),
+      );
+    }
+
+    final bool isMyOwnOrganisedEvent = (_userRole == 'ORGANISATEUR' && _useridOrganisateur == idOrganisateur);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
@@ -227,18 +313,20 @@ class _EventDetailViewState extends State<EventDetailView> {
         builder: (context, eventSnapshot) {
           int placesRestantes = widget.eventData['placesRestantes'] ?? 0;
           Timestamp? dateHeure = widget.eventData['dateHeureEvent'] as Timestamp?;
+          Timestamp? dateOuvertureBilletterie = widget.eventData['dateOuvertureBilletterie'] as Timestamp?;
 
           if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
             final freshData = eventSnapshot.data!.data() as Map<String, dynamic>;
             placesRestantes = freshData['placesRestantes'] ?? placesRestantes;
             dateHeure = freshData['dateHeureEvent'] as Timestamp? ?? dateHeure;
+            dateOuvertureBilletterie = freshData['dateOuvertureBilletterie'] as Timestamp? ?? dateOuvertureBilletterie;
           }
 
           final now = DateTime.now();
           final bool isPast = dateHeure != null && dateHeure.toDate().isBefore(now);
           final bool noPlacesLeft = placesRestantes <= 0;
+          final bool isBilletterieLocked = dateOuvertureBilletterie != null && dateOuvertureBilletterie.toDate().isAfter(now);
 
-          // Double écoute : on regarde si l'utilisateur possède déjà un billet pour cet Event
           return StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('billets')
@@ -248,223 +336,295 @@ class _EventDetailViewState extends State<EventDetailView> {
             builder: (context, billetSnapshot) {
               final bool hasTicket = billetSnapshot.hasData && billetSnapshot.data!.docs.isNotEmpty;
 
-              String buttonText = "SHOTGUN";
-              bool isButtonEnabled = true;
+              return StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('reminders')
+                    .doc("${currentUser?.uid}_${widget.eventId}")
+                    .snapshots(),
+                builder: (context, reminderSnapshot) {
+                  final bool hasReminder = reminderSnapshot.hasData && reminderSnapshot.data!.exists;
 
-              if (hasTicket) {
-                buttonText = "INSCRIT ! Place réservée 🎫";
-                isButtonEnabled = false;
-              } else if (isPast) {
-                buttonText = _getPastMessage(title);
-                isButtonEnabled = false;
-              } else if (noPlacesLeft) {
-                buttonText = _getFullMessage(title, capaciteMax);
-                isButtonEnabled = false;
-              }
+                  String buttonText = "SHOTGUN";
+                  bool isButtonEnabled = true;
 
-              return Stack(
-                children: [
-                  SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 250,
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            image: DecorationImage(
-                              image: AssetImage('assets/soiree.png'),
-                              fit: BoxFit.cover,
+                  if (isMyOwnOrganisedEvent) {
+                    buttonText = "GÉRER MON ÉVÉNEMENT";
+                    isButtonEnabled = true;
+                  } else if (hasTicket) {
+                    buttonText = "INSCRIT ! Place réservée 🎫";
+                    isButtonEnabled = false;
+                  } else if (isPast) {
+                    buttonText = _getPastMessage(title);
+                    isButtonEnabled = false;
+                  } else if (isBilletterieLocked) {
+                    if (hasReminder) {
+                      buttonText = _getNotificationMessage(title);
+                      isButtonEnabled = false;
+                    } else {
+                      buttonText = "RECEVOIR UNE NOTIFICATION";
+                      isButtonEnabled = true;
+                    }
+                  } else if (noPlacesLeft) {
+                    buttonText = _getFullMessage(title, capaciteMax);
+                    isButtonEnabled = false;
+                  }
+
+                  return Stack(
+                    children: [
+                      SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 250,
+                              width: double.infinity,
+                              decoration: const BoxDecoration(
+                                image: DecorationImage(
+                                  image: AssetImage('assets/soiree.png'),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                style: GoogleFonts.jura(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                description,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.grey[300],
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              Row(
-                                children: const [
+                            Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    'organisé par ',
-                                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                                  ),
-                                  Text(
-                                    'BDE INSA HDF',
-                                    style: TextStyle(
-                                      color: Colors.white,
+                                    title,
+                                    style: GoogleFonts.jura(
+                                      fontSize: 28,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      color: Colors.white,
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Container(width: 120, height: 1, color: Colors.grey[800]),
-                              const SizedBox(height: 24),
-                              Row(
-                                children: [
-                                  const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(height: 12),
                                   Text(
-                                    'Du ${_formatFullDate(dateHeure)}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                                    description,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.grey[300],
+                                      height: 1.4,
+                                    ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  const Icon(Icons.location_on_outlined, color: Colors.white, size: 24),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(height: 24),
+                                  FutureBuilder<DocumentSnapshot>(
+                                    future: FirebaseFirestore.instance.collection('organizers').doc(idOrganisateur).get(),
+                                    builder: (context, orgSnapshot) {
+                                      String displayName = 'Chargement...';
+                                      if (orgSnapshot.hasData && orgSnapshot.data!.exists) {
+                                        final orgData = orgSnapshot.data!.data() as Map<String, dynamic>;
+                                        displayName = orgData['nom'] ?? idOrganisateur;
+                                      } else if (orgSnapshot.connectionState == ConnectionState.done) {
+                                        displayName = idOrganisateur.isNotEmpty ? idOrganisateur : 'Inconnu';
+                                      }
+                                      return Row(
+                                        children: [
+                                          const Text(
+                                            'organisé par ',
+                                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                                          ),
+                                          Text(
+                                            displayName,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(width: 120, height: 1, color: Colors.grey[800]),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Du ${_formatFullDate(dateHeure)}',
+                                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_on_outlined, color: Colors.white, size: 24),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        'Lieu : $lieu',
+                                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Container(width: 160, height: 1, color: Colors.grey[800]),
+                                  const SizedBox(height: 24),
                                   Text(
-                                    'Lieu : $lieu',
-                                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                                    'Places disponibles : $placesRestantes / $capaciteMax',
+                                    style: GoogleFonts.jura(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: noPlacesLeft ? Colors.redAccent : Colors.white,
+                                    ),
                                   ),
+                                  const SizedBox(height: 180),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Container(width: 160, height: 1, color: Colors.grey[800]),
-                              const SizedBox(height: 24),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 10,
+                        left: 10,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 20,
+                        right: 20,
+                        bottom: 20,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isBilletterieLocked && !isMyOwnOrganisedEvent) ...[
                               Text(
-                                'Places disponibles : $placesRestantes / $capaciteMax',
+                                "Ouverture shotgun le\n${_formatSimpleDate(dateOuvertureBilletterie)}",
+                                textAlign: TextAlign.center,
                                 style: GoogleFonts.jura(
+                                  color: Colors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: noPlacesLeft ? Colors.redAccent : Colors.white,
+                                  height: 1.3,
                                 ),
                               ),
-                              const SizedBox(height: 150), // Augmenté pour laisser de la place aux boutons empilés
+                              const SizedBox(height: 16),
                             ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    top: MediaQuery.of(context).padding.top + 10,
-                    left: 10,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    bottom: 20,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Zone d'action dynamique principale (Shotgun ou Statut)
-                        isButtonEnabled
-                            ? ElevatedButton.icon(
-                          onPressed: _isProcessing ? null : () => _reserverPlace(widget.eventId),
-                          icon: _isProcessing
-                              ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                          )
-                              : const Icon(Icons.arrow_forward_rounded, size: 28),
-                          label: Text(
-                            _isProcessing ? "CHARGEMENT..." : buttonText,
-                            style: GoogleFonts.jura(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF9D4EDD),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            minimumSize: const Size.fromHeight(56),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            elevation: 6,
-                          ),
-                        )
-                            : Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: hasTicket ? const Color(0xFF2EC4B6).withOpacity(0.2) : Colors.grey[900],
-                            borderRadius: BorderRadius.circular(15),
-                            border: hasTicket ? Border.all(color: const Color(0xFF2EC4B6), width: 1.5) : null,
-                          ),
-                          child: Center(
-                            child: Text(
-                              buttonText,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.jura(
-                                color: hasTicket ? const Color(0xFF2EC4B6) : Colors.grey[500],
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
 
-                        // Si l'utilisateur est inscrit, on injecte un bouton rouge pour se désinscrire juste en dessous
-                        if (hasTicket) ...[
-                          const SizedBox(height: 12),
-                          TextButton.icon(
-                            onPressed: _isProcessing ? null : () => _seDesinscrire(widget.eventId),
-                            icon: _isProcessing
-                                ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2)
+                            isButtonEnabled
+                                ? ElevatedButton.icon(
+                              onPressed: _isProcessing
+                                  ? null
+                                  : () {
+                                if (isMyOwnOrganisedEvent) {
+                                  _showSnackBar("Ouverture du panel de gestion... 📊", isSuccess: true);
+                                } else if (isBilletterieLocked) {
+                                  _programmerRappel(widget.eventId);
+                                } else {
+                                  _reserverPlace(widget.eventId);
+                                }
+                              },
+                              icon: _isProcessing
+                                  ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                              )
+                                  : Icon(
+                                isMyOwnOrganisedEvent
+                                    ? Icons.admin_panel_settings_outlined
+                                    : Icons.notifications_active_outlined,
+                                size: 28,
+                              ),
+                              label: Text(
+                                _isProcessing ? "CHARGEMENT..." : buttonText,
+                                style: GoogleFonts.jura(
+                                  fontSize: (isMyOwnOrganisedEvent) ? 18 : 22,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isMyOwnOrganisedEvent ? const Color(0xFF4EA8DE) : const Color(0xFF9D4EDD),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                minimumSize: const Size.fromHeight(56),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                elevation: 6,
+                              ),
                             )
-                                : const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 20),
-                            label: Text(
-                              _isProcessing ? "TRAITEMENT..." : "Se désinscrire de l'événement",
-                              style: GoogleFonts.jura(
-                                color: Colors.redAccent,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                                : Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: hasTicket
+                                    ? const Color(0xFF2EC4B6).withOpacity(0.2)
+                                    : (hasReminder ? const Color(0xFF9D4EDD).withOpacity(0.15) : Colors.grey[900]),
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                    color: hasTicket
+                                        ? const Color(0xFF2EC4B6)
+                                        : (hasReminder ? const Color(0xFF9D4EDD) : Colors.transparent),
+                                    width: 1.5
+                                ),
+                              ),
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: Text(
+                                    buttonText,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.jura(
+                                      color: hasTicket
+                                          ? const Color(0xFF2EC4B6)
+                                          : (hasReminder ? const Color(0xFFB776EE) : Colors.grey[500]),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              minimumSize: const Size.fromHeight(48),
-                              backgroundColor: Colors.redAccent.withOpacity(0.1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+
+                            if (hasTicket && !isMyOwnOrganisedEvent) ...[
+                              const SizedBox(height: 12),
+                              TextButton.icon(
+                                onPressed: _isProcessing ? null : () => _seDesinscrire(widget.eventId),
+                                icon: _isProcessing
+                                    ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2)
+                                )
+                                    : const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 20),
+                                label: Text(
+                                  _isProcessing ? "TRAITEMENT..." : "Se désinscrire de l'événement",
+                                  style: GoogleFonts.jura(
+                                    color: Colors.redAccent,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  minimumSize: const Size.fromHeight(48),
+                                  backgroundColor: Colors.redAccent.withOpacity(0.1),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );

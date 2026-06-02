@@ -17,7 +17,7 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
   late TabController _tabController;
   bool _isShowingTickets = true;
   String _userRole = 'USER';
-  String _userOrganisation = '';
+  String _useridOrganisateur = '';
 
   @override
   void initState() {
@@ -40,7 +40,7 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
         final data = doc.data() as Map<String, dynamic>;
         setState(() {
           _userRole = data['role'] ?? 'USER';
-          _userOrganisation = data['organisation'] ?? '';
+          _useridOrganisateur = data['idOrganisateur'] ?? '';
         });
       }
     }
@@ -119,11 +119,11 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
   }
 
   Stream<List<Map<String, dynamic>>> _getOrganiserEventsStream() {
-    if (_userOrganisation.isEmpty) return Stream.value([]);
+    if (_useridOrganisateur.isEmpty) return Stream.value([]);
 
     return FirebaseFirestore.instance
         .collection('events')
-        .where('idOrganisateur', isEqualTo: _userOrganisation)
+        .where('idOrganisateur', isEqualTo: _useridOrganisateur)
         .snapshots()
         .map((eventSnapshot) {
       List<Map<String, dynamic>> events = [];
