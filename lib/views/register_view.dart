@@ -191,6 +191,22 @@ class _RegisterPageState extends State<RegisterPage> {
                                   return null;
                                 },
                               ),
+                              const SizedBox(height: 8),
+
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                  child: Text(
+                                    "Ton mot de passe doit faire au moins 8 caractères et inclure une majuscule, une minuscule, un chiffre ainsi qu'un caractère spécial (!@#\$&*~%).",
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey[500],
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              
                               const SizedBox(height: 16),
                               BuckshotInputField(
                                 controller: _confirmController,
