@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:buckshot/theme.dart';
+import 'package:buckshot/BuckshotTheme.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
 
 class CreateEventView extends StatefulWidget {
