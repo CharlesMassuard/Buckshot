@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/ShotgunBanner.dart';
 import '../widgets/ShotgunItem.dart';
-import '../widgets/BarreDeRecherche.dart';
 import '../widgets/BarreDeNavigation.dart';
 import 'event_detail_view.dart';
 import 'search_view.dart';
