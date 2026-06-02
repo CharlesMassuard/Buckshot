@@ -104,6 +104,7 @@ class _ScannerViewState extends State<ScannerView> {
 
       await FirebaseFirestore.instance.collection('billets').doc(ticketId).update({
         'scanAt': FieldValue.serverTimestamp(),
+        'scannedBy': userId,
       });
 
       setState(() {
