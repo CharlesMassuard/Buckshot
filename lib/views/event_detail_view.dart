@@ -147,7 +147,7 @@ class _EventDetailViewState extends State<EventDetailView> {
 
       _showSnackBar("SHOTGUN RÉUSSI ! Ton billet est réservé. 🚀🎉", isSuccess: true);
     } catch (e) {
-      _showSnackBar("${e.toString().replaceAll('Exception: ', '')}");
+      _showSnackBar(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -196,7 +196,7 @@ class _EventDetailViewState extends State<EventDetailView> {
 
       _showSnackBar("Désinscription prise en compte. Place libérée ! 🫡👋", isSuccess: true);
     } catch (e) {
-      _showSnackBar("${e.toString().replaceAll('Exception: ', '')}");
+      _showSnackBar(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -364,7 +364,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                     left: 10,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
@@ -414,7 +414,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                           decoration: BoxDecoration(
-                            color: hasTicket ? const Color(0xFF2EC4B6).withOpacity(0.2) : Colors.grey[900],
+                            color: hasTicket ? const Color(0xFF2EC4B6).withValues(alpha: 0.2) : Colors.grey[900],
                             borderRadius: BorderRadius.circular(15),
                             border: hasTicket ? Border.all(color: const Color(0xFF2EC4B6), width: 1.5) : null,
                           ),
@@ -454,7 +454,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               minimumSize: const Size.fromHeight(48),
-                              backgroundColor: Colors.redAccent.withOpacity(0.1),
+                              backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),

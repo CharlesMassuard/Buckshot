@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:buckshot/models/statut_billet.dart';
+import 'package:buckshot/models/statut_billet_model.dart';
 
 class BilletInscriptionModel {
   final String idUtilisateur;
