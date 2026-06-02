@@ -142,7 +142,7 @@ class _EventDetailViewState extends State<EventDetailView> {
   String _openBilleterieNotificationMessage(String eventName) {
     final List<String> pool = [
       "C'est ouvert ! Fonce prendre ta place pour $eventName ! 🚀🎉",
-      "La billetterie pour $eventName est maintenant ouverte ! C'est le moment de dégainer. 🎯🕹️",
+      "La billetterie pour $eventName is now open ! C'est le moment de dégainer. 🎯🕹️",
       "Le shotgun pour $eventName est officiellement lancé ! Que la chasse commence ! 🏹🔥",
       "C'est parti pour $eventName ! Ne laisse pas passer ta chance cette fois. 🚂🎫",
       "La billetterie de $eventName vient d'ouvrir ! Prépare tes meilleurs réflexes pour le jour J ! 🎯🕹️",
@@ -152,39 +152,49 @@ class _EventDetailViewState extends State<EventDetailView> {
     return pool[random.nextInt(pool.length)];
   }
 
-  Future<void> _programmerRappel(String eventId, String eventName, Timestamp? dateOuverture) async {
+  Future<void> _toggleRappel(String eventId, String eventName, Timestamp? dateOuverture, bool currentlyHasReminder) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showSnackBar("Vous devez être connecté pour programmer un rappel ! 🔐");
-      return;
-    }
-
-    if (dateOuverture == null) {
-      _showSnackBar("Impossible de récupérer la date d'ouverture du shotgun. ❌");
+      _showSnackBar("Vous devez être connecté pour modifier vos favoris ! 🔐");
       return;
     }
 
     setState(() => _isProcessing = true);
+    final reminderDocRef = FirebaseFirestore.instance.collection('reminders').doc("${user.uid}_$eventId");
 
     try {
-      final reminderId = "${user.uid}_$eventId";
-      await FirebaseFirestore.instance.collection('reminders').doc(reminderId).set({
-        'userId': user.uid,
-        'eventId': eventId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'notified': false,
-      });
+      if (currentlyHasReminder) {
+        await reminderDocRef.delete();
+        _showSnackBar("Événement retiré de tes favoris. 💔", isSuccess: true);
+      } else {
+        await reminderDocRef.set({
+          'userId': user.uid,
+          'eventId': eventId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'notified': false,
+        });
 
-      await NotificationService().scheduleNotification(
-        id: eventId.hashCode.abs(),
-        title: '🔥 SHOTGUN OUVERT !',
-        body: _openBilleterieNotificationMessage(eventName),
-        scheduledDate: dateOuverture.toDate(),
-      );
-
-      _showSnackBar("Alerte enregistrée ! Prépare tes doigts pour le shotgun. 🔔🚀", isSuccess: true);
+        // CORRECTION SÉCURISÉE : On vérifie si la date d'ouverture est dans le futur avant de planifier la notification
+        if (dateOuverture != null) {
+          final DateTime scheduledDateTime = dateOuverture.toDate();
+          if (scheduledDateTime.isAfter(DateTime.now())) {
+            await NotificationService().scheduleNotification(
+              id: eventId.hashCode.abs(),
+              title: '🔥 SHOTGUN OUVERT !',
+              body: _openBilleterieNotificationMessage(eventName),
+              scheduledDate: scheduledDateTime,
+            );
+            _showSnackBar("Ajouté aux favoris ! Alerte enregistrée. 🔔🚀", isSuccess: true);
+          } else {
+            // Si la billetterie est déjà en cours ou passée, pas de notification locale mais l'événement est quand même mis en favori
+            _showSnackBar("Ajouté à ta liste d'intérêts ! ❤️", isSuccess: true);
+          }
+        } else {
+          _showSnackBar("Ajouté à ta liste d'intérêts ! ❤️", isSuccess: true);
+        }
+      }
     } catch (e) {
-      _showSnackBar("Erreur lors de la programmation du rappel : $e");
+      _showSnackBar("Erreur : ${e.toString().replaceAll('Exception: ', '')}");
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -507,6 +517,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                           ],
                         ),
                       ),
+                      // BOUTON RETOUR (HAUT GAUCHE)
                       Positioned(
                         top: MediaQuery.of(context).padding.top + 10,
                         left: 10,
@@ -518,6 +529,27 @@ class _EventDetailViewState extends State<EventDetailView> {
                           child: IconButton(
                             icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
                             onPressed: () => Navigator.pop(context),
+                          ),
+                        ),
+                      ),
+                      // BOUTON CŒUR FAVORIS (HAUT DROITE)
+                      Positioned(
+                        top: MediaQuery.of(context).padding.top + 10,
+                        right: 10,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              hasReminder ? Icons.favorite : Icons.favorite_border_rounded,
+                              color: hasReminder ? const Color(0xFF9D4EDD) : Colors.white,
+                              size: 26,
+                            ),
+                            onPressed: _isProcessing
+                                ? null
+                                : () => _toggleRappel(widget.eventId, title, dateOuvertureBilletterie, hasReminder),
                           ),
                         ),
                       ),
@@ -550,7 +582,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                 if (isMyOwnOrganisedEvent) {
                                   _showSnackBar("Ouverture du panel de gestion... 📊", isSuccess: true);
                                 } else if (isBilletterieLocked) {
-                                  _programmerRappel(widget.eventId, title, dateOuvertureBilletterie);
+                                  _toggleRappel(widget.eventId, title, dateOuvertureBilletterie, hasReminder);
                                 } else {
                                   _reserverPlace(widget.eventId);
                                 }
@@ -637,12 +669,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                   ),
                                 ),
                                 style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  minimumSize: const Size.fromHeight(48),
-                                  backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
                                 ),
                               ),
                             ],
