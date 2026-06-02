@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:buckshot/models/event_model.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image/image.dart' as img;
 
 class CreateEventView extends StatefulWidget {
   const CreateEventView({super.key});
@@ -39,6 +42,36 @@ class _CreateEventViewState extends State<CreateEventView> {
       });
     }
   }
+
+  Future<File> resizeImage(File imageFile, {int maxWidth = 1080}) async {
+    final bytes = await imageFile.readAsBytes();
+    final image = img.decodeImage(bytes)!;
+    if (image.width > maxWidth) {
+      final resized = img.copyResize(image, width: maxWidth);
+      final resizedBytes = img.encodeJpg(resized, quality: 85);
+      return File(imageFile.path)
+        ..writeAsBytesSync(resizedBytes);
+    }
+    return imageFile;
+  }
+
+
+    Future<String?> imageToBase64(File? imageFile) async {
+      if (imageFile == null){
+        return "";
+      }
+
+      final resizedFile = await resizeImage(imageFile, maxWidth: 200);
+      final bytes = await resizedFile.readAsBytes();
+      final base64 = base64Encode(bytes);
+
+      // Vérifier que la taille Base64 < 1 Mo (1 048 576 octets)
+      if (base64.length > 1048576) {
+        print("Erreur: L'image en Base64 dépasse 1 Mo !");
+        return null;
+      }
+      return base64;
+    }
 
   void _validate() async {
     if (_titleController.text.isEmpty) {
@@ -89,7 +122,12 @@ class _CreateEventViewState extends State<CreateEventView> {
       );
       return;
     }
-
+    if (_image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('L\'image est obligatoire !')),
+      );
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -106,44 +144,50 @@ class _CreateEventViewState extends State<CreateEventView> {
 
         final organizerDoc = await FirebaseFirestore.instance
             .collection('organizers')
-            .doc(data['organisation'])
+            .doc(data['idOrganisateur'])
             .get();
 
         if (!organizerDoc.exists) return;
 
         final String key = "event_${_titleController.text}_${selectedStartDate.toString()}";
+
+        final resizedImage = await imageToBase64(_image);
+
+        if (resizedImage == null) return;
+
         final EventModel eventModel = EventModel(
           id : key,
           nom: _titleController.text,
-            description: _descriptionController.text,
-              idOrganisateur: data['organisation'],
-              capaciteMax: int.parse(_seatsController.text),
-              placesRestantes : int.parse(_seatsController.text),
-              lieu: _locationController.text,
-              dateHeureEvent: DateTime(selectedStartDate?.year ?? DateTime.now().year,
-                  selectedStartDate?.month ?? DateTime.now().month,
-                  selectedStartDate?.day ?? DateTime.now().day,
-                  selectedStartTime?.hour ?? DateTime.now().hour,
-                  selectedStartTime?.minute ?? DateTime.now().minute),
+          description: _descriptionController.text,
+          idOrganisateur: data['idOrganisateur'],
+          capaciteMax: int.parse(_seatsController.text),
+          placesRestantes : int.parse(_seatsController.text),
+          lieu: _locationController.text,
+          dateHeureEvent: DateTime(selectedStartDate?.year ?? DateTime.now().year,
+              selectedStartDate?.month ?? DateTime.now().month,
+              selectedStartDate?.day ?? DateTime.now().day,
+              selectedStartTime?.hour ?? DateTime.now().hour,
+              selectedStartTime?.minute ?? DateTime.now().minute),
 
-              dateFinEvent: DateTime(selectedEndDate?.year ?? DateTime.now().year,
-                  selectedEndDate?.month ?? DateTime.now().month,
-                  selectedEndDate?.day ?? DateTime.now().day,
-                  selectedEndTime?.hour ?? DateTime.now().hour,
-                  selectedEndTime?.minute ?? DateTime.now().minute),
+          dateFinEvent: DateTime(selectedEndDate?.year ?? DateTime.now().year,
+              selectedEndDate?.month ?? DateTime.now().month,
+              selectedEndDate?.day ?? DateTime.now().day,
+              selectedEndTime?.hour ?? DateTime.now().hour,
+              selectedEndTime?.minute ?? DateTime.now().minute),
 
-              dateOuvertureBilletterie: DateTime(selectedOpenDate?.year ?? DateTime.now().year,
-                  selectedOpenDate?.month ?? DateTime.now().month,
-                  selectedOpenDate?.day ?? DateTime.now().day,
-                  selectedOpenTime?.hour ?? DateTime.now().hour,
-                  selectedOpenTime?.minute ?? DateTime.now().minute),
+          dateOuvertureBilletterie: DateTime(selectedOpenDate?.year ?? DateTime.now().year,
+              selectedOpenDate?.month ?? DateTime.now().month,
+              selectedOpenDate?.day ?? DateTime.now().day,
+              selectedOpenTime?.hour ?? DateTime.now().hour,
+              selectedOpenTime?.minute ?? DateTime.now().minute),
 
-              dateFermetureBilletterie: DateTime(selectedCloseDate?.year ?? DateTime.now().year,
-                  selectedCloseDate?.month ?? DateTime.now().month,
-                  selectedCloseDate?.day ?? DateTime.now().day,
-                  selectedCloseTime?.hour ?? DateTime.now().hour,
-                  selectedCloseTime?.minute ?? DateTime.now().minute),
-            );
+          dateFermetureBilletterie: DateTime(selectedCloseDate?.year ?? DateTime.now().year,
+              selectedCloseDate?.month ?? DateTime.now().month,
+              selectedCloseDate?.day ?? DateTime.now().day,
+              selectedCloseTime?.hour ?? DateTime.now().hour,
+              selectedCloseTime?.minute ?? DateTime.now().minute),
+          image: resizedImage,
+        );
 
         await FirebaseFirestore.instance.collection('events').add(eventModel.toFirestore());
 
@@ -200,13 +244,12 @@ class _CreateEventViewState extends State<CreateEventView> {
         padding: const EdgeInsets.all(16.0),
         child: Center(
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).colorScheme.primary,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(20),
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1), width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Theme.of(context).colorScheme.primary.withAlpha(77),
@@ -214,7 +257,6 @@ class _CreateEventViewState extends State<CreateEventView> {
                   spreadRadius: 2,
                 ),
               ],
-              color: Theme.of(context).colorScheme.surface,
             ),
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -226,23 +268,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                     controller: _titleController,
                     decoration: InputDecoration(
                       labelText: "Titre de l'événement",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
@@ -253,32 +286,23 @@ class _CreateEventViewState extends State<CreateEventView> {
                     maxLines: 5,
                     decoration: InputDecoration(
                       labelText: "Description",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
                   // --- Date et heure de début ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure de début",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -289,11 +313,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   const SizedBox(height: 16),
 
                   // --- Date et heure de fin ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure de fin",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -304,11 +328,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   const SizedBox(height: 16),
 
                   // --- Date et heure d'ouverture du shotgun ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure d'ouverture du shotgun",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -319,11 +343,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   const SizedBox(height: 16),
 
                   // --- Date et heure de fermeture du shotgun ---
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Date et heure de fermeture du shotgun",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14)
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -338,23 +362,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                     controller: _locationController,
                     decoration: InputDecoration(
                       labelText: "Lieu de l'événement",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
@@ -364,23 +379,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: "Nombre de places",
-                      labelStyle: TextStyle(color: Theme.of(context).colorScheme.primary),
-                      contentPadding: const EdgeInsets.all(12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      fillColor: Theme.of(context).colorScheme.surface,
+                      labelStyle: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       filled: true,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).colorScheme.surface, width: 1)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     ),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.jura(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
 
