@@ -5,7 +5,9 @@ import 'register_view.dart';
 import 'home_view.dart';
 
 class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+  final String? prefilledEmail;
+
+  const LoginView({super.key,this.prefilledEmail});
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -13,12 +15,18 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>(); 
-  final _emailController = TextEditingController();
+  late TextEditingController _emailController;
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
   bool _isPasswordObscured = true;
 
+  
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.prefilledEmail ?? '');
+  }
   @override
   void dispose() {
     _emailController.dispose();

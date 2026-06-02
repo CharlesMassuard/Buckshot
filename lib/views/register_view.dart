@@ -69,10 +69,14 @@ class _RegisterPageState extends State<RegisterPage> {
           'createdAt': FieldValue.serverTimestamp(),
         });
 
+        await FirebaseAuth.instance.signOut();
+
         if (mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const LoginView()),
+            MaterialPageRoute(
+              builder: (context) =>  LoginView(prefilledEmail: email,)
+            ),
           );
         }
       } else {
