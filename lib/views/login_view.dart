@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/buckshot_input_field.dart'; 
+import 'forgot_password_view.dart';
 import 'register_view.dart';
 import 'home_view.dart';
 
 class LoginView extends StatefulWidget {
-  const LoginView({super.key});
+  final String? prefilledEmail;
+
+  const LoginView({super.key,this.prefilledEmail});
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -13,12 +16,18 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>(); 
-  final _emailController = TextEditingController();
+  late TextEditingController _emailController;
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
   bool _isPasswordObscured = true;
 
+  
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.prefilledEmail ?? '');
+  }
   @override
   void dispose() {
     _emailController.dispose();
@@ -137,7 +146,12 @@ class _LoginViewState extends State<LoginView> {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: TextButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const ForgotPasswordView()),
+                                        );
+                                  },
                                   child: Text(
                                     'Mot de passe oublié ?',
                                     style: theme.textTheme.bodyMedium?.copyWith(
