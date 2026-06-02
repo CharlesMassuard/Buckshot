@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../widgets/buckshot_input_field.dart'; 
+import 'forgot_password_view.dart';
 import 'register_view.dart';
 import 'home_view.dart';
 
@@ -145,7 +146,12 @@ class _LoginViewState extends State<LoginView> {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: TextButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const ForgotPasswordView()),
+                                        );
+                                  },
                                   child: Text(
                                     'Mot de passe oublié ?',
                                     style: theme.textTheme.bodyMedium?.copyWith(
