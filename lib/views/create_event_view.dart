@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:buckshot/models/event_model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:buckshot/BuckshotTheme.dart';
 import 'package:buckshot/widgets/date_time_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CreateEventView extends StatefulWidget {
   const CreateEventView({super.key});
@@ -12,12 +15,14 @@ class CreateEventView extends StatefulWidget {
 }
 
 class _CreateEventViewState extends State<CreateEventView> {
-  DateTime? selectedStartDate;
+  DateTime? selectedStartDate; //Début évent
   TimeOfDay? selectedStartTime;
-  DateTime? selectedEndDate;
+  DateTime? selectedEndDate; //Fin évent
   TimeOfDay? selectedEndTime;
-  DateTime? selectedOpenDate;
+  DateTime? selectedOpenDate; //Ouverture billeterie
   TimeOfDay? selectedOpenTime;
+  DateTime? selectedCloseDate; // Fermeture billeterie
+  TimeOfDay? selectedCloseTime;
   File? _image;
 
   final TextEditingController _titleController = TextEditingController();
@@ -36,7 +41,7 @@ class _CreateEventViewState extends State<CreateEventView> {
     }
   }
 
-  void _validate() {
+  void _validate() async {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Le titre est obligatoire !')),
@@ -79,11 +84,100 @@ class _CreateEventViewState extends State<CreateEventView> {
       );
       return;
     }
+    if (selectedCloseDate == null || selectedCloseDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La date et l\'heure de fermeture sont obligatoires !')),
+      );
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+
+        //if (data['organisation'] == null) return;
+
+        final organizerDoc = await FirebaseFirestore.instance
+            .collection('organizers')
+            //.doc(data['organisation'])
+            .doc("BDE_INSA_HDF")
+            .get();
+
+        if (!organizerDoc.exists) return;
+
+        final String key = "event_${_titleController.text}_${selectedStartDate.toString()}";
+        final EventModel eventModel = EventModel(
+          id : key,
+          nom: _titleController.text,
+            description: _descriptionController.text,
+              idOrganisateur: "BDE_INSA_HDF",
+              //'idOrganisateur': "data['organisation']",
+              capaciteMax: int.parse(_seatsController.text),
+              placesRestantes : int.parse(_seatsController.text),
+              lieu: _locationController.text,
+              dateHeureEvent: DateTime(selectedStartDate?.year ?? DateTime.now().year,
+                  selectedStartDate?.month ?? DateTime.now().month,
+                  selectedStartDate?.day ?? DateTime.now().day,
+                  selectedStartTime?.hour ?? DateTime.now().hour,
+                  selectedStartTime?.minute ?? DateTime.now().minute),
+
+              dateFinEvent: DateTime(selectedEndDate?.year ?? DateTime.now().year,
+                  selectedEndDate?.month ?? DateTime.now().month,
+                  selectedEndDate?.day ?? DateTime.now().day,
+                  selectedEndTime?.hour ?? DateTime.now().hour,
+                  selectedEndTime?.minute ?? DateTime.now().minute),
+
+              dateOuvertureBilletterie: DateTime(selectedOpenDate?.year ?? DateTime.now().year,
+                  selectedOpenDate?.month ?? DateTime.now().month,
+                  selectedOpenDate?.day ?? DateTime.now().day,
+                  selectedOpenTime?.hour ?? DateTime.now().hour,
+                  selectedOpenTime?.minute ?? DateTime.now().minute),
+
+              dateFermetureBilletterie: DateTime(selectedCloseDate?.year ?? DateTime.now().year,
+                  selectedCloseDate?.month ?? DateTime.now().month,
+                  selectedCloseDate?.day ?? DateTime.now().day,
+                  selectedCloseTime?.hour ?? DateTime.now().hour,
+                  selectedCloseTime?.minute ?? DateTime.now().minute),
+            );
+
+        await FirebaseFirestore.instance.collection('events').add(eventModel.toFirestore());
+
+        _titleController.text = "";
+        _descriptionController.text = "";
+        _seatsController.text = "";
+        _locationController.text = "";
+        selectedStartDate = null;
+        selectedStartTime = null;
+        selectedEndDate = null;
+        selectedEndTime = null;
+        selectedOpenDate = null;
+        selectedOpenTime = null;
+        selectedCloseDate = null;
+        selectedCloseTime = null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Evènement créé avec succès ! !')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erreur lors la création de l\'évènement !')),
+      );
+    }
 
     // Si tout est valide
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Événement créé avec succès !')),
     );
+
+
   }
 
   @override
@@ -118,7 +212,7 @@ class _CreateEventViewState extends State<CreateEventView> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -224,6 +318,21 @@ class _CreateEventViewState extends State<CreateEventView> {
                   DateTimePicker(
                     onDateChanged: (date) => selectedOpenDate = date,
                     onTimeChanged: (time) => selectedOpenTime = time,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // --- Date et heure de fermeture du shotgun ---
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Date et heure de fermeture du shotgun",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DateTimePicker(
+                    onDateChanged: (date) => selectedCloseDate = date,
+                    onTimeChanged: (time) => selectedCloseTime = time,
                   ),
                   const SizedBox(height: 16),
 
