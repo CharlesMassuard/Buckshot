@@ -35,6 +35,7 @@ class StaffView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final now = DateTime.now();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
@@ -111,102 +112,152 @@ class StaffView extends StatelessWidget {
                           return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
                         }
 
-                        final eventDocs = eventSnapshot.data?.docs ?? [];
+                        final allDocs = eventSnapshot.data?.docs ?? [];
 
-                        if (eventDocs.isEmpty) {
+                        final filteredDocs = allDocs.where((doc) {
+                          final event = doc.data() as Map<String, dynamic>;
+                          final Timestamp? eventDateFin = event['dateFinEvent'] as Timestamp?;
+                          if (eventDateFin == null) return true;
+                          return eventDateFin.toDate().isAfter(now);
+                        }).toList();
+
+                        filteredDocs.sort((a, b) {
+                          final eventA = a.data() as Map<String, dynamic>;
+                          final eventB = b.data() as Map<String, dynamic>;
+
+                          final Timestamp? dateStartA = eventA['dateHeureEvent'] as Timestamp?;
+                          final Timestamp? dateStartB = eventB['dateHeureEvent'] as Timestamp?;
+
+                          final bool startedA = dateStartA == null || dateStartA.toDate().subtract(const Duration(minutes: 30)).isBefore(now);
+                          final bool startedB = dateStartB == null || dateStartB.toDate().subtract(const Duration(minutes: 30)).isBefore(now);
+
+                          if (startedA && !startedB) return -1;
+                          if (!startedA && startedB) return 1;
+
+                          if (dateStartA != null && dateStartB != null) {
+                            return dateStartA.compareTo(dateStartB);
+                          }
+                          return 0;
+                        });
+
+                        if (filteredDocs.isEmpty) {
                           return Center(
                             child: Text(
-                              "Aucun événement à gérer pour le moment 😢",
+                              "Aucun événement actif à gérer 😢",
                               style: GoogleFonts.jura(color: Colors.grey[500], fontSize: 16),
                             ),
                           );
                         }
 
                         return ListView.builder(
-                          itemCount: eventDocs.length,
+                          itemCount: filteredDocs.length,
                           padding: const EdgeInsets.only(bottom: 20),
                           itemBuilder: (context, index) {
-                            final doc = eventDocs[index];
+                            final doc = filteredDocs[index];
                             final event = doc.data() as Map<String, dynamic>;
                             final eventId = doc.id;
 
                             final String eventNom = event['nom'] ?? 'Événement';
                             final String eventLieu = event['lieu'] ?? 'Lieu non spécifié';
-                            final String eventImage = event['imageUrl'] ?? 'assets/soiree.png';
                             final Timestamp? eventDate = event['dateHeureEvent'] as Timestamp?;
                             final Timestamp? eventDateFin = event['dateFinEvent'] as Timestamp?;
 
+                            final bool hasStarted = eventDate == null || eventDate.toDate().subtract(const Duration(minutes: 30)).isBefore(now);
+
                             return Container(
                               margin: const EdgeInsets.only(bottom: 20),
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ScannerView(
-                                        eventId: eventId, 
-                                        eventData: event,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.asset(
-                                        eventImage,
-                                        width: 90,
-                                        height: 90,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
+                              child: Opacity(
+                                opacity: hasStarted ? 1.0 : 0.5,
+                                child: AbsorbPointer(
+                                  absorbing: !hasStarted,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ScannerView(
+                                            eventId: eventId, 
+                                            eventData: event,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Image.asset(
+                                            'assets/soiree.png',
                                             width: 90,
                                             height: 90,
-                                            color: Colors.grey[800],
-                                            child: const Icon(Icons.image, color: Colors.white54),
-                                          );
-                                        },
-                                      ),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return Container(
+                                                width: 90,
+                                                height: 90,
+                                                color: Colors.grey[800],
+                                                child: const Icon(Icons.image, color: Colors.white54),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                eventNom,
+                                                style: GoogleFonts.jura(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _formatEventDate(eventDate, eventDateFin),
+                                                style: GoogleFonts.jura(
+                                                  fontSize: 13,
+                                                  color: Colors.grey[400],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                eventLieu,
+                                                style: GoogleFonts.jura(
+                                                  fontSize: 13,
+                                                  color: Colors.grey[400],
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (!hasStarted)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white12,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: Colors.white30, width: 0.8),
+                                            ),
+                                            child: Text(
+                                              "Fermé",
+                                              style: GoogleFonts.jura(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            eventNom,
-                                            style: GoogleFonts.jura(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _formatEventDate(eventDate, eventDateFin),
-                                            style: GoogleFonts.jura(
-                                              fontSize: 13,
-                                              color: Colors.grey[400],
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            eventLieu,
-                                            style: GoogleFonts.jura(
-                                              fontSize: 13,
-                                              color: Colors.grey[400],
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             );

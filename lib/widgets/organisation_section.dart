@@ -78,6 +78,42 @@ class _OrganisationSectionState extends State<OrganisationSection> {
     }
   }
 
+  void _showLeaveConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: Text(
+            "Quitter l'organisation",
+            style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            "Êtes-vous sûr de vouloir quitter cette organisation ? Vos accès privilégiés seront révoqués.",
+            style: GoogleFonts.jura(color: Colors.grey[300]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text("Annuler", style: GoogleFonts.jura(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _leaveOrganisation();
+              },
+              child: Text(
+                "Quitter",
+                style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -131,7 +167,7 @@ class _OrganisationSectionState extends State<OrganisationSection> {
                       side: BorderSide(color: theme.colorScheme.error, width: 1.5),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: _leaveOrganisation,
+                    onPressed: () => _showLeaveConfirmationDialog(context),
                     child: Text("Quitter l'organisation", style: GoogleFonts.jura(color: theme.colorScheme.error, fontWeight: FontWeight.bold)),
                   ),
                 ),
