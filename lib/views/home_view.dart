@@ -197,10 +197,15 @@ class _HomeContent extends StatelessWidget {
                             height: 40,
                             fit: BoxFit.contain,
                           ),
-                          StreamBuilder<bool>(
-                            stream: eventService.hasFavorites(user?.uid),
+                          // Écoute en temps réel les favoris pour modifier l'icône du bouton
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('reminders')
+                                .where('userId', isEqualTo: user?.uid)
+                                .snapshots(),
                             builder: (context, remindersSnapshot) {
-                              final bool hasFavorites = remindersSnapshot.data ?? false;
+                              final bool hasFavorites = remindersSnapshot.hasData &&
+                                  remindersSnapshot.data!.docs.isNotEmpty;
 
                               return IconButton(
                                 icon: Icon(
