@@ -64,7 +64,6 @@ class _RegisterPageState extends State<RegisterPage> {
           'prenom': username,
           'nom': lastName,
           'email': email,
-          'organisation': '',
           'role': 'USER',
           'createdAt': FieldValue.serverTimestamp(),
         });

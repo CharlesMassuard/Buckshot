@@ -70,5 +70,7 @@
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
+		<key>NSCameraUsageDescription</key>
+		<string>Cette application nécessite un accès à l'appareil photo pour scanner les billets et les QR codes des événements.</string>
 	</dict>
 </plist>
