@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../widgets/ShotgunBanner.dart';
 import '../widgets/ShotgunItem.dart';
-import '../widgets/BarreDeRecherche.dart';
 import '../widgets/BarreDeNavigation.dart';
 import 'event_detail_view.dart';
 import 'search_view.dart';
@@ -23,11 +22,11 @@ class _HomeViewState extends State<HomeView> {
   int _currentIndex = 0;
 
   final List<Widget> _allPages = [
-    const _HomeContent(),                                                                             // Index 0
-    const SearchView(),                                                                               // Index 1
-    const StaffView(),                                                                              // Index 2 (affiché conditionnellement)
-    const MyTicketsView(),                                                                            // Index 3
-    const ProfileView(),                                                                              // Index 4
+    const _HomeContent(),
+    const SearchView(),
+    const StaffView(),
+    const MyTicketsView(),
+    const ProfileView(),
   ];
 
   @override
@@ -81,8 +80,6 @@ class _HomeViewState extends State<HomeView> {
 
         return Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surface,
-
-          // Utilisation de l'IndexedStack ajustée à notre liste dynamique de pages
           body: IndexedStack(
             index: _currentIndex,
             children: activePages,
@@ -192,60 +189,84 @@ class _HomeContent extends StatelessWidget {
             final mainEventDoc = upcomingEvents.isNotEmpty ? upcomingEvents.first : allDocs.first;
             final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
 
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle(context, 'Dernier shotgun en cours'),
-                  ShotgunBanner(
-                    title: mainEvent['nom'] ?? 'Événement',
-                    description: mainEvent['description'] ?? '',
-                    date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
-                    hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
-                    imageUrl: 'assets/soiree.png',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EventDetailView(
-                            eventId: mainEventDoc.id,
-                            eventData: mainEvent,
+            return SafeArea(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Image.asset(
+                            'assets/BuckshotLogoLong.png',
+                            height: 40,
+                            fit: BoxFit.contain,
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.favorite_border_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                    ),
 
-                  _buildSectionTitle(context, 'Vos inscriptions'),
-                  myInscriptionsDocs.isEmpty
-                      ? const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                    child: Text("Vous n'avez pas encore de réservations 🎫",
-                        style: TextStyle(color: Colors.grey, fontSize: 14)),
-                  )
-                      : _buildHorizontalEventList(myInscriptionsDocs),
+                    _buildSectionTitle(context, 'Dernier shotgun en cours'),
+                    ShotgunBanner(
+                      title: mainEvent['nom'] ?? 'Événement',
+                      description: mainEvent['description'] ?? '',
+                      date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
+                      hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
+                      imageUrl: 'assets/soiree.png',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EventDetailView(
+                              eventId: mainEventDoc.id,
+                              eventData: mainEvent,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
 
-                  _buildSectionTitle(context, 'En tête d’affiche'),
-                  headlinerDocs.isEmpty
-                      ? const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                    child: Text("Plus aucun événement disponible pour le moment 🛑",
-                        style: TextStyle(color: Colors.grey, fontSize: 14)),
-                  )
-                      : _buildHorizontalEventList(headlinerDocs),
+                    _buildSectionTitle(context, 'Vos inscriptions'),
+                    myInscriptionsDocs.isEmpty
+                        ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      child: Text("Vous n'avez pas encore de réservations 🎫",
+                          style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    )
+                        : _buildHorizontalEventList(myInscriptionsDocs),
 
-                  _buildSectionTitle(context, 'Nouveautés'),
-                  noveltyDocs.isEmpty
-                      ? const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                    child: Text("Aucune nouveauté récente.",
-                        style: TextStyle(color: Colors.grey, fontSize: 14)),
-                  )
-                      : _buildHorizontalEventList(noveltyDocs),
+                    _buildSectionTitle(context, 'En tête d’affiche'),
+                    headlinerDocs.isEmpty
+                        ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      child: Text("Plus aucun événement disponible pour le moment 🛑",
+                          style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    )
+                        : _buildHorizontalEventList(headlinerDocs),
 
-                  const SizedBox(height: 24),
-                ],
+                    _buildSectionTitle(context, 'Nouveautés'),
+                    noveltyDocs.isEmpty
+                        ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                      child: Text("Aucune nouveauté récente.",
+                          style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    )
+                        : _buildHorizontalEventList(noveltyDocs),
+
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             );
           },
