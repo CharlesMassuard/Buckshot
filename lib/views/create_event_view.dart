@@ -107,8 +107,7 @@ class _CreateEventViewState extends State<CreateEventView> {
 
         final organizerDoc = await FirebaseFirestore.instance
             .collection('organizers')
-            //.doc(data['organisation'])
-            .doc("BDE_INSA_HDF")
+            .doc(data['organisation'])
             .get();
 
         if (!organizerDoc.exists) return;
@@ -118,8 +117,7 @@ class _CreateEventViewState extends State<CreateEventView> {
           id : key,
           nom: _titleController.text,
             description: _descriptionController.text,
-              idOrganisateur: "BDE_INSA_HDF",
-              //'idOrganisateur': "data['organisation']",
+              idOrganisateur: data['organisation'],
               capaciteMax: int.parse(_seatsController.text),
               placesRestantes : int.parse(_seatsController.text),
               lieu: _locationController.text,
