@@ -47,4 +47,24 @@ class AuthService {
       throw 'Une erreur inattendue est survenue';
     }
   }
+
+
+Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(
+        email: email.trim(),
+      );
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-email':
+          throw "C'est pas un email valide ça, chef. 📧";
+        case 'user-not-found':
+          throw "Aucun compte n'est lié à cet email. 🕵️";
+        default:
+          throw "Erreur lors de l'envoi de l'email... 🌐";
+      }
+    } catch (e) {
+      throw "Une erreur inattendue est survenue... 💥";
+    }
+  }
 }
