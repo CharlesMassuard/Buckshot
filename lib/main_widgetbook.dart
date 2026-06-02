@@ -1,6 +1,6 @@
 import 'package:buckshot/widgets/barre_de_navigation.dart';
-import 'package:buckshot/widgets/ShotGunBanner.dart';
-import 'package:buckshot/widgets/ShotGunItem.dart';
+import 'package:buckshot/widgets/shotgun_banner.dart';
+import 'package:buckshot/widgets/shotgun_item.dart';
 import 'package:flutter/material.dart';
 import 'package:buckshot/widgets/barre_de_recherche.dart';
 

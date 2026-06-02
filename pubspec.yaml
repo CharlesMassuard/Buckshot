@@ -30,9 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  firebase_core: ^3.0.0
-  cloud_firestore: ^5.0.0
-  mobile_scanner: ^6.0.0  # ou la dernière dispo
+  firebase_core: ^4.10.0
+  cloud_firestore: ^6.5.0
+  mobile_scanner: ^7.2.0  # ou la dernière dispo
   qr_flutter: ^4.1.0       # Pour afficher le QR code
 
   # The following adds the Cupertino Icons font to your application.
@@ -40,7 +40,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
   google_fonts: ^8.1.0
-  firebase_auth: ^5.7.0
+  firebase_auth: ^6.5.2
   image_picker: ^1.0.4
   flutter_markdown_plus: ^1.0.7
 
@@ -54,7 +54,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.0
 
 flutter_launcher_icons:
