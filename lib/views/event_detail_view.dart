@@ -175,7 +175,6 @@ class _EventDetailViewState extends State<EventDetailView> {
           'notified': false,
         });
 
-        // CORRECTION SÉCURISÉE : On vérifie si la date d'ouverture est dans le futur avant de planifier la notification
         if (dateOuverture != null) {
           final DateTime scheduledDateTime = dateOuverture.toDate();
           if (scheduledDateTime.isAfter(DateTime.now())) {
@@ -187,7 +186,6 @@ class _EventDetailViewState extends State<EventDetailView> {
             );
             _showSnackBar("Ajouté aux favoris ! Alerte enregistrée. 🔔🚀", isSuccess: true);
           } else {
-            // Si la billetterie est déjà en cours ou passée, pas de notification locale mais l'événement est quand même mis en favori
             _showSnackBar("Ajouté à ta liste d'intérêts ! ❤️", isSuccess: true);
           }
         } else {
@@ -374,6 +372,7 @@ class _EventDetailViewState extends State<EventDetailView> {
           int placesRestantes = widget.eventData['placesRestantes'] ?? 0;
           Timestamp? dateHeure = widget.eventData['dateHeureEvent'] as Timestamp?;
           Timestamp? dateOuvertureBilletterie = widget.eventData['dateOuvertureBilletterie'] as Timestamp?;
+          Timestamp? dateFinEvent = widget.eventData['dateFinEvent'] as Timestamp?;
           String eventImageBase64 = widget.eventData['image'] ?? '';
 
           if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
@@ -381,6 +380,7 @@ class _EventDetailViewState extends State<EventDetailView> {
             placesRestantes = freshData['placesRestantes'] ?? placesRestantes;
             dateHeure = freshData['dateHeureEvent'] as Timestamp? ?? dateHeure;
             dateOuvertureBilletterie = freshData['dateOuvertureBilletterie'] as Timestamp? ?? dateOuvertureBilletterie;
+            dateFinEvent = freshData['dateFinEvent'] as Timestamp? ?? dateFinEvent;
             eventImageBase64 = freshData['image'] ?? eventImageBase64;
           }
 
@@ -500,12 +500,27 @@ class _EventDetailViewState extends State<EventDetailView> {
                                   Container(width: 120, height: 1, color: Colors.grey[800]),
                                   const SizedBox(height: 24),
                                   Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
                                       const SizedBox(width: 12),
-                                      Text(
-                                        'Du ${_formatFullDate(dateHeure)}',
-                                        style: const TextStyle(color: Colors.white, fontSize: 15),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Début : ${_formatFullDate(dateHeure)}',
+                                              style: const TextStyle(color: Colors.white, fontSize: 15),
+                                            ),
+                                            if (dateFinEvent != null) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Fin : ${_formatFullDate(dateFinEvent)}',
+                                                style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -538,7 +553,6 @@ class _EventDetailViewState extends State<EventDetailView> {
                           ],
                         ),
                       ),
-                      // BOUTON RETOUR (HAUT GAUCHE)
                       Positioned(
                         top: MediaQuery.of(context).padding.top + 10,
                         left: 10,
@@ -553,7 +567,6 @@ class _EventDetailViewState extends State<EventDetailView> {
                           ),
                         ),
                       ),
-                      // BOUTON CŒUR FAVORIS (HAUT DROITE)
                       Positioned(
                         top: MediaQuery.of(context).padding.top + 10,
                         right: 10,

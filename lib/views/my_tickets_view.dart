@@ -215,41 +215,33 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: isElevatedUser
                   ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isShowingTickets = true),
-                      child: Text(
-                        'Mes Billets',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.jura(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: _isShowingTickets ? Colors.white : Colors.grey[600],
-                          decoration: _isShowingTickets ? TextDecoration.underline : TextDecoration.none,
-                          decorationColor: theme.colorScheme.secondary,
-                          decorationThickness: 2,
-                        ),
+                  GestureDetector(
+                    onTap: () => setState(() => _isShowingTickets = true),
+                    child: Text(
+                      'Mes Billets',
+                      style: GoogleFonts.jura(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: _isShowingTickets ? Colors.white : Colors.grey[600],
+                        decoration: _isShowingTickets ? TextDecoration.underline : TextDecoration.none,
+                        decorationColor: theme.colorScheme.secondary,
+                        decorationThickness: 2,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _isShowingTickets = false),
-                      child: Text(
-                        'Mes Events',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.jura(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: !_isShowingTickets ? Colors.white : Colors.grey[600],
-                          decoration: !_isShowingTickets ? TextDecoration.underline : TextDecoration.none,
-                          decorationColor: theme.colorScheme.secondary,
-                          decorationThickness: 2,
-                        ),
+                  GestureDetector(
+                    onTap: () => setState(() => _isShowingTickets = false),
+                    child: Text(
+                      'Mes Events',
+                      style: GoogleFonts.jura(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: !_isShowingTickets ? Colors.white : Colors.grey[600],
+                        decoration: !_isShowingTickets ? TextDecoration.underline : TextDecoration.none,
+                        decorationColor: theme.colorScheme.secondary,
+                        decorationThickness: 2,
                       ),
                     ),
                   ),
