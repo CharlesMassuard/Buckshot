@@ -1,180 +1,474 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'dart:math';
 
-class EventDetailView extends StatelessWidget {
+class EventDetailView extends StatefulWidget {
+  final String eventId; // Requis pour l'identification du document Firestore
   final Map<String, dynamic> eventData;
 
-  const EventDetailView({super.key, required this.eventData});
+  const EventDetailView({
+    super.key,
+    required this.eventId,
+    required this.eventData,
+  });
+
+  @override
+  State<EventDetailView> createState() => _EventDetailViewState();
+}
+
+class _EventDetailViewState extends State<EventDetailView> {
+  bool _isProcessing = false;
 
   String _formatFullDate(Timestamp? timestamp) {
     if (timestamp == null) return 'Date inconnue';
     return DateFormat('dd/MM/yyyy à HH\'h\'').format(timestamp.toDate());
   }
 
+  String _getRandomMessage(List<Map<String, dynamic>> messagePool, String eventName) {
+    int totalWeight = messagePool.fold(0, (sum, item) => sum + (item['weight'] as int));
+
+    int seed = eventName.hashCode.abs() + DateTime.now().day;
+    final random = Random(seed);
+    int randomValue = random.nextInt(totalWeight);
+
+    int currentSum = 0;
+    for (final item in messagePool) {
+      currentSum += item['weight'] as int;
+      if (randomValue < currentSum) {
+        return item['text'] as String;
+      }
+    }
+    return messagePool.first['text'] as String;
+  }
+
+  String _getPastMessage(String eventName) {
+    final List<Map<String, dynamic>> pool = [
+      {'text': "Trop tard l'ancien, c'est fini ! 💀", 'weight': 40},
+      {'text': "Le train est déjà parti sans toi... 🚂", 'weight': 40},
+      {'text': "Fallait se réveiller avant la fin ! ⏰", 'weight': 35},
+      {'text': "Tu as raté le coche, chef. 🎫", 'weight': 35},
+      {'text': "Rembobinage impossible, c'est du passé. ⏳", 'weight': 30},
+      {'text': "L'événement est déjà dans les livres d'histoire. 📖", 'weight': 25},
+      {'text': "Erreur 404 : Soirée introuvable dans le présent. 🌐", 'weight': 20},
+      {'text': "C'était le choix cornélien, t'as pris l'option dodo. 🛌", 'weight': 15},
+      {'text': "Retour vers le futur ? Non, pas de Doc ici. 🚗💨", 'weight': 10},
+      {'text': "Même le BDE a fini de cuver. C'est dire. 🫗", 'weight': 15},
+      {'text': "La légende raconte que certains dorment encore sur place. ⛺", 'weight': 10},
+      {'text': "Le ménage est fait, les fûts sont vides. Rentre chez toi. 🧹", 'weight': 8},
+      {'text': "T'as confondu le calendrier avec ton emploi du temps de l'UV ? 🗓️", 'weight': 5},
+    ];
+    return _getRandomMessage(pool, eventName);
+  }
+
+  String _getFullMessage(String eventName, int maxPlaces) {
+    final List<Map<String, dynamic>> pool = [
+      {'text': "Pas assez rapide... Skill issue. ⚰️", 'weight': 40},
+      {'text': "Plus de places. Victime de son succès ! 📈", 'weight': 40},
+      {'text': "Sold out ! Fallait pas bégayer au clic. 🛑", 'weight': 35},
+      {'text': "La billetterie a fondu. C'est complet ! 🔥", 'weight': 30},
+      {'text': "Reste dehors, c'est blindé de chez blindé. 🚪", 'weight': 30},
+      {'text': "T'as cru qu'on t'attendait ? Y'a plus rien ! 🤷‍♂️", 'weight': 25},
+      {'text': "Not clear! Quelqu'un a ruiné le serveur. 💥", 'weight': 15},
+      {'text': "Sélection naturelle par la fibre optique. 🌐", 'weight': 15},
+      {'text': "T'as cru que c'était les restos du cœur ? 💸", 'weight': 10},
+      {'text': "T'as cru que tu t'appelais Charles ? 😏", 'weight': 10},
+      {'text': "Il ne reste que des miettes et de la sueur. 🧀", 'weight': 8},
+      {'text': "Même avec $maxPlaces places, t'as raté le shotgun. Souffle dans le ballon avant de prendre le volant 🚔", 'weight': 25},
+      {'text': "Y'avait $maxPlaces places dispo et t'as réussi à finir sur le trottoir. Bravo. 🎪", 'weight': 20},
+      {'text': "Y'a plus de places que de moyenne à ton prochain DS, et pourtant t'as raté le coche. 📉", 'weight': 15},
+      {'text': "Ton ping est plus élevé que tes chances de valider l'année. 📡", 'weight': 12},
+      {'text': "Va falloir corrompre le président du BDE là, parce que c'est mort. 💼", 'weight': 10},
+      {'text': "Même en distanciel tu serais arrivé en retard. 💻", 'weight': 8},
+      {'text': "Tu n'es pas invité à la fête du pipi caca ! 💩", 'weight': 2},
+    ];
+    return _getRandomMessage(pool, eventName);
+  }
+
+  // Fonction de réservation avec gestion atomique des transactions
+  Future<void> _reserverPlace(String eventId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showSnackBar("Vous devez être connecté pour participer ! 🔐");
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(eventId);
+    final billetsCollection = FirebaseFirestore.instance.collection('billets');
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final existingTicketQuery = await billetsCollection
+            .where('userId', isEqualTo: user.uid)
+            .where('eventId', isEqualTo: eventId)
+            .limit(1)
+            .get();
+
+        if (existingTicketQuery.docs.isNotEmpty) {
+          throw Exception("Tu as déjà ton billet pour cet événement ! 🎫");
+        }
+
+        DocumentSnapshot eventSnapshot = await transaction.get(eventRef);
+
+        if (!eventSnapshot.exists) {
+          throw Exception("L'événement n'existe pas ! ❌");
+        }
+
+        Map<String, dynamic> data = eventSnapshot.data() as Map<String, dynamic>;
+        int currentPlaces = data['placesRestantes'] ?? 0;
+        Timestamp? dateHeure = data['dateHeureEvent'] as Timestamp?;
+
+        if (dateHeure != null && dateHeure.toDate().isBefore(DateTime.now())) {
+          throw Exception("L'événement est déjà passé ! ⏳");
+        }
+
+        if (currentPlaces <= 0) {
+          throw Exception("Plus de places disponibles ! 😭");
+        }
+
+        // Décrémentation
+        transaction.update(eventRef, {
+          'placesRestantes': currentPlaces - 1,
+        });
+
+        // Ajout du billet
+        DocumentReference newBilletRef = billetsCollection.doc();
+        transaction.set(newBilletRef, {
+          'userId': user.uid,
+          'eventId': eventId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'scanAt': null,
+        });
+      });
+
+      _showSnackBar("SHOTGUN RÉUSSI ! Ton billet est réservé. 🚀🎉", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("${e.toString().replaceAll('Exception: ', '')}");
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // Nouvelle fonction de désinscription sécurisée par transaction
+  Future<void> _seDesinscrire(String eventId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isProcessing = true);
+
+    final eventRef = FirebaseFirestore.instance.collection('events').doc(eventId);
+    final billetsCollection = FirebaseFirestore.instance.collection('billets');
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // 1. Chercher le billet existant de l'utilisateur pour cet événement
+        final ticketQuery = await billetsCollection
+            .where('userId', isEqualTo: user.uid)
+            .where('eventId', isEqualTo: eventId)
+            .limit(1)
+            .get();
+
+        if (ticketQuery.docs.isEmpty) {
+          throw Exception("Aucun billet trouvé pour cet événement ! ❌");
+        }
+
+        final billetDocRef = billetsCollection.doc(ticketQuery.docs.first.id);
+
+        // 2. Récupérer les informations de l'événement pour ajuster les places
+        DocumentSnapshot eventSnapshot = await transaction.get(eventRef);
+        if (!eventSnapshot.exists) {
+          throw Exception("L'événement n'existe pas ! ❌");
+        }
+
+        Map<String, dynamic> data = eventSnapshot.data() as Map<String, dynamic>;
+        int currentPlaces = data['placesRestantes'] ?? 0;
+
+        // 3. Mettre à jour : Supprimer le billet et Incrémenter la place libérée
+        transaction.delete(billetDocRef);
+        transaction.update(eventRef, {
+          'placesRestantes': currentPlaces + 1,
+        });
+      });
+
+      _showSnackBar("Désinscription prise en compte. Place libérée ! 🫡👋", isSuccess: true);
+    } catch (e) {
+      _showSnackBar("${e.toString().replaceAll('Exception: ', '')}");
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isSuccess = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.jura(fontWeight: FontWeight.bold, color: Colors.white)),
+        backgroundColor: isSuccess ? const Color(0xFF2EC4B6) : const Color(0xFFE63946),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = eventData['nom'] ?? 'Événement';
-    final description = eventData['description'] ?? 'Aucune description.';
-    final lieu = eventData['lieu'] ?? 'Lieu non spécifié';
-    final capaciteMax = eventData['capaciteMax'] ?? 0;
-    final placesRestantes = eventData['placesRestantes'] ?? 0;
-    final dateHeure = eventData['dateHeureEvent'] as Timestamp?;
+    final title = widget.eventData['nom'] ?? 'Événement';
+    final description = widget.eventData['description'] ?? 'Aucune description.';
+    final lieu = widget.eventData['lieu'] ?? 'Lieu non spécifié';
+    final capaciteMax = widget.eventData['capaciteMax'] ?? 0;
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
-      body: Stack(
-        children: [
-          // 1. CONTENU DÉROULANT
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Image d'en-tête
-                Container(
-                  height: 250,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage('assets/soiree.png'),
-                      fit: BoxFit.cover,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('events').doc(widget.eventId).snapshots(),
+        builder: (context, eventSnapshot) {
+          int placesRestantes = widget.eventData['placesRestantes'] ?? 0;
+          Timestamp? dateHeure = widget.eventData['dateHeureEvent'] as Timestamp?;
+
+          if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
+            final freshData = eventSnapshot.data!.data() as Map<String, dynamic>;
+            placesRestantes = freshData['placesRestantes'] ?? placesRestantes;
+            dateHeure = freshData['dateHeureEvent'] as Timestamp? ?? dateHeure;
+          }
+
+          final now = DateTime.now();
+          final bool isPast = dateHeure != null && dateHeure.toDate().isBefore(now);
+          final bool noPlacesLeft = placesRestantes <= 0;
+
+          // Double écoute : on regarde si l'utilisateur possède déjà un billet pour cet Event
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('billets')
+                .where('userId', isEqualTo: currentUser?.uid)
+                .where('eventId', isEqualTo: widget.eventId)
+                .snapshots(),
+            builder: (context, billetSnapshot) {
+              final bool hasTicket = billetSnapshot.hasData && billetSnapshot.data!.docs.isNotEmpty;
+
+              String buttonText = "SHOTGUN";
+              bool isButtonEnabled = true;
+
+              if (hasTicket) {
+                buttonText = "INSCRIT ! Place réservée 🎫";
+                isButtonEnabled = false;
+              } else if (isPast) {
+                buttonText = _getPastMessage(title);
+                isButtonEnabled = false;
+              } else if (noPlacesLeft) {
+                buttonText = _getFullMessage(title, capaciteMax);
+                isButtonEnabled = false;
+              }
+
+              return Stack(
+                children: [
+                  SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 250,
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage('assets/soiree.png'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: GoogleFonts.jura(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                description,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.grey[300],
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: const [
+                                  Text(
+                                    'organisé par ',
+                                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                                  ),
+                                  Text(
+                                    'BDE INSA HDF',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Container(width: 120, height: 1, color: Colors.grey[800]),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Du ${_formatFullDate(dateHeure)}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on_outlined, color: Colors.white, size: 24),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Lieu : $lieu',
+                                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Container(width: 160, height: 1, color: Colors.grey[800]),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Places disponibles : $placesRestantes / $capaciteMax',
+                                style: GoogleFonts.jura(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: noPlacesLeft ? Colors.redAccent : Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 150), // Augmenté pour laisser de la place aux boutons empilés
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Titre
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    left: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 12),
-
-                      // Description
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.grey[300],
-                          height: 1.4,
-                        ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      const SizedBox(height: 24),
-
-                      // Organisateur
-                      Row(
-                        children: const [
-                          Text(
-                            'organisé par ',
-                            style: TextStyle(color: Colors.grey, fontSize: 16),
-                          ),
-                          Text(
-                            'BDE INSA HDF',
-                            style: TextStyle(
-                              color: Colors.white,
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 20,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Zone d'action dynamique principale (Shotgun ou Statut)
+                        isButtonEnabled
+                            ? ElevatedButton.icon(
+                          onPressed: _isProcessing ? null : () => _reserverPlace(widget.eventId),
+                          icon: _isProcessing
+                              ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                          )
+                              : const Icon(Icons.arrow_forward_rounded, size: 28),
+                          label: Text(
+                            _isProcessing ? "CHARGEMENT..." : buttonText,
+                            style: GoogleFonts.jura(
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF9D4EDD),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            minimumSize: const Size.fromHeight(56),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            elevation: 6,
+                          ),
+                        )
+                            : Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: hasTicket ? const Color(0xFF2EC4B6).withOpacity(0.2) : Colors.grey[900],
+                            borderRadius: BorderRadius.circular(15),
+                            border: hasTicket ? Border.all(color: const Color(0xFF2EC4B6), width: 1.5) : null,
+                          ),
+                          child: Center(
+                            child: Text(
+                              buttonText,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.jura(
+                                color: hasTicket ? const Color(0xFF2EC4B6) : Colors.grey[500],
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Si l'utilisateur est inscrit, on injecte un bouton rouge pour se désinscrire juste en dessous
+                        if (hasTicket) ...[
+                          const SizedBox(height: 12),
+                          TextButton.icon(
+                            onPressed: _isProcessing ? null : () => _seDesinscrire(widget.eventId),
+                            icon: _isProcessing
+                                ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2)
+                            )
+                                : const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 20),
+                            label: Text(
+                              _isProcessing ? "TRAITEMENT..." : "Se désinscrire de l'événement",
+                              style: GoogleFonts.jura(
+                                color: Colors.redAccent,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              minimumSize: const Size.fromHeight(48),
+                              backgroundColor: Colors.redAccent.withOpacity(0.1),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      Container(width: 120, height: 1, color: Colors.grey[800]),
-                      const SizedBox(height: 24),
-
-                      // Détails techniques (Date, lieu)
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined, color: Colors.white, size: 24),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Du ${_formatFullDate(dateHeure)}',
-                            style: const TextStyle(color: Colors.white, fontSize: 15),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined, color: Colors.white, size: 24),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Lieu : $lieu',
-                            style: const TextStyle(color: Colors.white, fontSize: 15),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Container(width: 160, height: 1, color: Colors.grey[800]),
-                      const SizedBox(height: 24),
-
-                      // Places
-                      Text(
-                        'Places disponibles : $placesRestantes / $capaciteMax',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 100), // Marge pour le bouton
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // 2. RETOUR ARRIÈRE
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 10,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 24),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ),
-
-          // 3. BOUTON DE SHOTGUN FIXE
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 20,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                print("Demande d'inscription enregistrée pour : $title");
-              },
-              icon: const Icon(Icons.arrow_forward_rounded, size: 28),
-              label: const Text(
-                'SHOTGUN',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF9D4EDD),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                elevation: 6,
-              ),
-            ),
-          ),
-        ],
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }

@@ -2,7 +2,6 @@ import 'package:buckshot/widgets/BarreDeNavigation.dart';
 import 'package:buckshot/widgets/ShotGunBanner.dart';
 import 'package:buckshot/widgets/ShotGunItem.dart';
 import 'package:flutter/material.dart';
-// Ajuste le chemin de l'import selon ton projet :
 import 'package:buckshot/widgets/BarreDeRecherche.dart';
 
 void main() {
@@ -88,7 +87,7 @@ class _MonCatalogueAppState extends State<MonCatalogueApp> {
               _sectionTitle("Barre de navigation"),
 
               _wrapCentred(
-                Barredenavigation(
+                BarreDeNavigation(
                   currentIndex: currentIndex,
 
                   onItemSelected: (index) {

@@ -32,7 +32,7 @@ dependencies:
     sdk: flutter
   firebase_core: ^3.0.0
   cloud_firestore: ^5.0.0
-  mobile_scanner: ^5.2.3   # Pour l'appareil photo / scan
+  mobile_scanner: ^6.0.0  # ou la dernière dispo
   qr_flutter: ^4.1.0       # Pour afficher le QR code
 
   # The following adds the Cupertino Icons font to your application.
@@ -40,6 +40,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
   image_picker: ^1.0.4
+  google_fonts: ^8.1.0
+  firebase_auth: ^5.7.0
+  flutter_markdown_plus: ^1.0.7
 
 dev_dependencies:
   flutter_test:
@@ -51,6 +54,30 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  # Remplacer 'color' par 'background_image' pour étirer le dégradé sur tout l'écran
+  background_image: "assets/fond.png"
+  
+  # Ton logo carré transparent qui se placera pile au milieu
+  image: "assets/logoDessusDessous.png"
+  
+  # Gestion des proportions
+  fullscreen: true
+  android_gravity: center
+  ios_content_mode: center
+
+  android_12:
+    image: "assets/logoDessusDessous.png"
+    icon_background_color: "#0B0914"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -66,6 +93,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/soiree.png
+    - assets/BuckshotLogoLong.png
+    - assets/BuckshotLogoShort.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
