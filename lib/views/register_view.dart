@@ -40,7 +40,6 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _signUp() async {
-    // 2. Vérification de la validité du formulaire
     if (!_formKey.currentState!.validate()) {
       return; 
     }
@@ -49,7 +48,7 @@ class _RegisterPageState extends State<RegisterPage> {
       _showError("Tu dois accepter la politique de confidentialité pour continuer ! 🕵️‍♂️");
       return;
     }
-    
+
     final username = _usernameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final email = _emailController.text.trim();
