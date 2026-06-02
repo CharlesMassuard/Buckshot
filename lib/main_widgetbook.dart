@@ -1,8 +1,8 @@
-import 'package:buckshot/widgets/BarreDeNavigation.dart';
+import 'package:buckshot/widgets/barre_de_navigation.dart';
 import 'package:buckshot/widgets/ShotGunBanner.dart';
 import 'package:buckshot/widgets/ShotGunItem.dart';
 import 'package:flutter/material.dart';
-import 'package:buckshot/widgets/BarreDeRecherche.dart';
+import 'package:buckshot/widgets/barre_de_recherche.dart';
 
 void main() {
   runApp(const MonCatalogueApp());

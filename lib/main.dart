@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
-import 'package:buckshot/BuckshotTheme.dart';
+import 'package:buckshot/buckshot_theme.dart';
 import 'views/home_view.dart';
 import 'views/login_view.dart';
 

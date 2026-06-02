@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import '../widgets/BuckshotInputField.dart'; // 1. IMPORTANT : On importe ton nouveau widget externe ici !
+import '../widgets/buckshot_input_field.dart'; 
 import 'register_view.dart';
 import 'home_view.dart';
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:buckshot/BuckshotTheme.dart';
+import 'package:buckshot/buckshot_theme.dart';
 import 'login_view.dart';
 import '../widgets/profile_info_section.dart';
 import '../widgets/password_section.dart';

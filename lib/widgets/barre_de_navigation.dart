@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; // Obligatoire pour utiliser ImageFilter
-import 'package:buckshot/BuckshotTheme.dart';
+import 'dart:ui'; 
+import 'package:buckshot/buckshot_theme.dart';
 
 class NavItem {
   final IconData icon;

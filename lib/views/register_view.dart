@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'login_view.dart';
-import '../widgets/PrivacyCheckbox.dart';
-import '../widgets/BuckshotInputField.dart'; 
+import '../widgets/privacy_checkbox.dart';
+import '../widgets/buckshot_input_field.dart'; 
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
