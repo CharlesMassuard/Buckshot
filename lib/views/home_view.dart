@@ -9,6 +9,7 @@ import 'event_detail_view.dart';
 import 'search_view.dart';
 import 'profile_view.dart';
 import 'my_tickets_view.dart';
+import 'staff_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -24,7 +25,7 @@ class _HomeViewState extends State<HomeView> {
   final List<Widget> _allPages = [
     const _HomeContent(),                                                                             // Index 0
     const SearchView(),                                                                               // Index 1
-    const Center(child: Text('Scanner QR', style: TextStyle(color: Colors.white))),                   // Index 2
+    const StaffView(),                                                                              // Index 2 (affiché conditionnellement)
     const MyTicketsView(),                                                                            // Index 3
     const ProfileView(),                                                                              // Index 4
   ];
@@ -87,7 +88,7 @@ class _HomeViewState extends State<HomeView> {
         ]);
 
         return Scaffold(
-          backgroundColor: Theme.of(context).colorScheme.background,
+          backgroundColor: Theme.of(context).colorScheme.surface,
 
           // Utilisation de l'IndexedStack ajustée à notre liste dynamique de pages
           body: IndexedStack(
