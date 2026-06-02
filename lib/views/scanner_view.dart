@@ -167,14 +167,10 @@ class _ScannerViewState extends State<ScannerView> {
                     icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 28),
                     onPressed: () => Navigator.pop(context),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.history, color: Colors.white, size: 32),
-                    onPressed: () {},
-                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Text(
@@ -185,8 +181,8 @@ class _ScannerViewState extends State<ScannerView> {
                   color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
-                  ),
-                ),
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
               _formatEventDate(eventDate, eventDateFin),
@@ -195,49 +191,45 @@ class _ScannerViewState extends State<ScannerView> {
                 color: Colors.grey[300],
               ),
             ),
-            const Spacer(),
-            
-            if (_resultState == ScanResultState.none)
-              Center(
-                child: SizedBox(
-                  width: 310,
-                  height: 310,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned.fill(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: MobileScanner(
-                            controller: cameraController,
-                            onDetect: (capture) {
-                              final List<Barcode> barcodes = capture.barcodes;
-                              if (barcodes.isNotEmpty && !_isProcessing) {
-                                final String code = barcodes.first.rawValue ?? '';
-                                if (code.isNotEmpty) {
-                                  _processQRScan(code);
-                                }
-                              }
-                            },
-                          ),
+            Expanded(
+              child: Center(
+                child: _resultState == ScanResultState.none
+                    ? SizedBox(
+                        width: 310,
+                        height: 310,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: MobileScanner(
+                                  controller: cameraController,
+                                  onDetect: (capture) {
+                                    final List<Barcode> barcodes = capture.barcodes;
+                                    if (barcodes.isNotEmpty && !_isProcessing) {
+                                      final String code = barcodes.first.rawValue ?? '';
+                                      if (code.isNotEmpty) {
+                                        _processQRScan(code);
+                                      }
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 280,
+                              height: 280,
+                              child: CustomPaint(
+                                painter: ScannerBorderPainter(),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      SizedBox(
-                        width: 280,
-                        height: 280,
-                        child: CustomPaint(
-                          painter: ScannerBorderPainter(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              _buildResultCard(),
-
-            const Spacer(),
-            
+                      )
+                    : _buildResultCard(),
+              ),
+            ),
             if (_resultState != ScanResultState.none)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -265,8 +257,9 @@ class _ScannerViewState extends State<ScannerView> {
                     ],
                   ),
                 ),
-              ),
-            const SizedBox(height: 10),
+              )
+            else
+              const SizedBox(height: 94), // Maintient l'espace pour éviter un saut d'UI
           ],
         ),
       ),
@@ -281,50 +274,48 @@ class _ScannerViewState extends State<ScannerView> {
       glowColor = const Color(0xFFE63946);
     }
 
-    return Center(
-      child: Container(
-        width: 310,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
-        decoration: BoxDecoration(
-          color: const Color(0xFF161224),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: glowColor.withValues(alpha: 0.8), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: glowColor.withValues(alpha: 0.25),
-              blurRadius: 25,
-              spreadRadius: 5,
-            )
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_resultState == ScanResultState.success) ...[
-              _buildInfoRow(_studentName),
-              const SizedBox(height: 16),
-              _buildInfoRow(_ticketIdDisplay),
-              const SizedBox(height: 16),
-              _buildStatusRow("Accès autorisé", const Color(0xFF39FF14)),
-            ] else if (_resultState == ScanResultState.invalid) ...[
-              const SizedBox(height: 20),
-              _buildStatusRow("Billet invalide", const Color(0xFFE63946)),
-              const SizedBox(height: 20),
-            ] else if (_resultState == ScanResultState.alreadyScanned) ...[
-              _buildInfoRow(_studentName),
-              const SizedBox(height: 16),
-              _buildInfoRow(_ticketIdDisplay),
-              const SizedBox(height: 16),
-              _buildStatusRowWithSub("Billet déjà scanné", _scanTimeDisplay, const Color(0xFFE63946)),
-            ] else if (_resultState == ScanResultState.wrongEvent) ...[
-              _buildInfoRow(_studentName),
-              const SizedBox(height: 16),
-              _buildInfoRow(_ticketIdDisplay),
-              const SizedBox(height: 16),
-              _buildStatusRow("Billet pour un autre événement", const Color(0xFFE63946)),
-            ]
-          ],
-        ),
+    return Container(
+      width: 310,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161224),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: glowColor.withValues(alpha: 0.8), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: glowColor.withValues(alpha: 0.25),
+            blurRadius: 25,
+            spreadRadius: 5,
+          )
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_resultState == ScanResultState.success) ...[
+            _buildInfoRow(_studentName),
+            const SizedBox(height: 16),
+            _buildInfoRow(_ticketIdDisplay),
+            const SizedBox(height: 16),
+            _buildStatusRow("Accès autorisé", const Color(0xFF39FF14)),
+          ] else if (_resultState == ScanResultState.invalid) ...[
+            const SizedBox(height: 20),
+            _buildStatusRow("Billet invalide", const Color(0xFFE63946)),
+            const SizedBox(height: 20),
+          ] else if (_resultState == ScanResultState.alreadyScanned) ...[
+            _buildInfoRow(_studentName),
+            const SizedBox(height: 16),
+            _buildInfoRow(_ticketIdDisplay),
+            const SizedBox(height: 16),
+            _buildStatusRowWithSub("Billet déjà scanné", _scanTimeDisplay, const Color(0xFFE63946)),
+          ] else if (_resultState == ScanResultState.wrongEvent) ...[
+            _buildInfoRow(_studentName),
+            const SizedBox(height: 16),
+            _buildInfoRow(_ticketIdDisplay),
+            const SizedBox(height: 16),
+            _buildStatusRow("Billet pour un autre événement", const Color(0xFFE63946)),
+          ]
+        ],
       ),
     );
   }
@@ -412,7 +403,7 @@ class ScannerBorderPainter extends CustomPainter {
       ..moveTo(size.width - cornerLength, 0)
       ..lineTo(size.width - radius, 0)
       ..arcToPoint(Offset(size.width, radius), radius: Radius.circular(radius))
-      ..lineTo(size.width, cornerLength); // Correction ici : va vers le bas, pas vers la gauche
+      ..lineTo(size.width, cornerLength);
     canvas.drawPath(pathTopRight, paint);
 
     final pathBottomRight = Path()
