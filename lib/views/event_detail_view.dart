@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
+import '../services/notification_service.dart';
 
 class EventDetailView extends StatefulWidget {
   final String eventId;
@@ -65,7 +66,7 @@ class _EventDetailViewState extends State<EventDetailView> {
   }
 
   String _getRandomMessage(List<Map<String, dynamic>> messagePool, String eventName) {
-    int totalWeight = messagePool.fold(0, (sum, item) => sum + (item['weight'] as int));
+    int totalWeight = messagePool.fold(0, (acc, item) => acc + (item['weight'] as int));
     int seed = eventName.hashCode.abs() + DateTime.now().day;
     final random = Random(seed);
     int randomValue = random.nextInt(totalWeight);
@@ -89,7 +90,7 @@ class _EventDetailViewState extends State<EventDetailView> {
       {'text': "Rembobinage impossible, c'est du passé. ⏳", 'weight': 30},
       {'text': "L'événement est déjà dans les livres d'histoire. 📖", 'weight': 25},
       {'text': "Erreur 404 : Soirée introuvable dans le présent. 🌐", 'weight': 20},
-      {'text': "C'était le choix cornélien, t'as pris l'option dodo. 🛌", 'weight': 15},
+      {'text': "C'était le choix cornélien, t'as pris l'option d dodo. 🛌", 'weight': 15},
       {'text': "Retour vers le futur ? Non, pas de Doc ici. 🚗💨", 'weight': 10},
       {'text': "Même le BDE a fini de cuver. C'est dire. 🫗", 'weight': 15},
       {'text': "La légende raconte que certains dorment encore sur place. ⛺", 'weight': 10},
@@ -138,10 +139,26 @@ class _EventDetailViewState extends State<EventDetailView> {
     return _getRandomMessage(pool, eventName);
   }
 
-  Future<void> _programmerRappel(String eventId) async {
+  String _openBilleterieNotificationMessage(String eventName) {
+    final List<Map<String, dynamic>> pool = [
+      {'text': "C'est ouvert ! Fonce prendre ta place pour $eventName ! 🚀🎉", 'weight': 40},
+      {'text': "La billetterie pour $eventName est maintenant ouverte ! C'est le moment de dégainer. 🎯🕹️", 'weight': 30},
+      {'text': "Le shotgun pour $eventName est officiellement lancé ! Que la chasse commence ! 🏹🔥", 'weight': 30},
+      {'text': "C'est parti pour $eventName ! Ne laisse pas passer ta chance cette fois. 🚂🎫", 'weight': 20},
+      {'text': "La billetterie de $eventName vient d'ouvrir ! Prépare tes meilleurs réflexes pour le jour J ! 🎯🕹️", 'weight': 10},
+    ];
+    return _getRandomMessage(pool, eventName);
+  }
+
+  Future<void> _programmerRappel(String eventId, String eventName, Timestamp? dateOuverture) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       _showSnackBar("Vous devez être connecté pour programmer un rappel ! 🔐");
+      return;
+    }
+
+    if (dateOuverture == null) {
+      _showSnackBar("Impossible de récupérer la date d'ouverture du shotgun. ❌");
       return;
     }
 
@@ -155,6 +172,13 @@ class _EventDetailViewState extends State<EventDetailView> {
         'createdAt': FieldValue.serverTimestamp(),
         'notified': false,
       });
+
+      await NotificationService().scheduleNotification(
+        id: eventId.hashCode.abs(),
+        title: '🔥 SHOTGUN OUVERT !',
+        body: _openBilleterieNotificationMessage(eventName),
+        scheduledDate: dateOuverture.toDate(),
+      );
 
       _showSnackBar("Alerte enregistrée ! Prépare tes doigts pour le shotgun. 🔔🚀", isSuccess: true);
     } catch (e) {
@@ -483,7 +507,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                         left: 10,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -521,7 +545,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                 if (isMyOwnOrganisedEvent) {
                                   _showSnackBar("Ouverture du panel de gestion... 📊", isSuccess: true);
                                 } else if (isBilletterieLocked) {
-                                  _programmerRappel(widget.eventId);
+                                  _programmerRappel(widget.eventId, title, dateOuvertureBilletterie);
                                 } else {
                                   _reserverPlace(widget.eventId);
                                 }
@@ -562,8 +586,8 @@ class _EventDetailViewState extends State<EventDetailView> {
                               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                               decoration: BoxDecoration(
                                 color: hasTicket
-                                    ? const Color(0xFF2EC4B6).withOpacity(0.2)
-                                    : (hasReminder ? const Color(0xFF9D4EDD).withOpacity(0.15) : Colors.grey[900]),
+                                    ? const Color(0xFF2EC4B6).withValues(alpha: 0.2)
+                                    : (hasReminder ? const Color(0xFF9D4EDD).withValues(alpha: 0.15) : Colors.grey[900]),
                                 borderRadius: BorderRadius.circular(15),
                                 border: Border.all(
                                     color: hasTicket
@@ -612,7 +636,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                 style: TextButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                   minimumSize: const Size.fromHeight(48),
-                                  backgroundColor: Colors.redAccent.withOpacity(0.1),
+                                  backgroundColor: Colors.redAccent.withValues(alpha: 0.1),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),

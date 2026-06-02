@@ -6,10 +6,12 @@ import 'firebase_options.dart';
 import 'package:buckshot/BuckshotTheme.dart';
 import 'views/home_view.dart';
 import 'views/login_view.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
+  await NotificationService().initNotification();
 
   bool firebaseInitialized = false;
 
