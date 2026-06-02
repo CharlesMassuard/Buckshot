@@ -370,12 +370,14 @@ class _EventDetailViewState extends State<EventDetailView> {
                 builder: (context, reminderSnapshot) {
                   final bool hasReminder = reminderSnapshot.hasData && reminderSnapshot.data!.exists;
 
-                  String buttonText = "SHOTGUN";
+                  String buttonText = "M'INSCRIRE";
                   bool isButtonEnabled = true;
+                  IconData buttonIcon = Icons.local_activity_outlined;
 
                   if (isMyOwnOrganisedEvent) {
                     buttonText = "GÉRER MON ÉVÉNEMENT";
                     isButtonEnabled = true;
+                    buttonIcon = Icons.admin_panel_settings_outlined;
                   } else if (hasTicket) {
                     buttonText = "INSCRIT ! Place réservée 🎫";
                     isButtonEnabled = false;
@@ -389,6 +391,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                     } else {
                       buttonText = "RECEVOIR UNE NOTIFICATION";
                       isButtonEnabled = true;
+                      buttonIcon = Icons.notifications_active_outlined;
                     }
                   } else if (noPlacesLeft) {
                     buttonText = _getFullMessage(title, capaciteMax);
@@ -559,9 +562,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                               )
                                   : Icon(
-                                isMyOwnOrganisedEvent
-                                    ? Icons.admin_panel_settings_outlined
-                                    : Icons.notifications_active_outlined,
+                                buttonIcon,
                                 size: 28,
                               ),
                               label: Text(
