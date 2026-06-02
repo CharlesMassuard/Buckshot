@@ -16,12 +16,9 @@ class BuckshotTheme {
       onSecondary: Colors.white,
       error: Color(0xFFFF3366),
       onError: Colors.white,
-      surface: Color(0xFF161224),
+      surface: Color(0xFF0B0914),
       onSurface: Colors.white,
-      surfaceVariant: Color(0xFF241E36),
       onSurfaceVariant: Color(0xFFE0AAFF),
-      background: Color(0xFF0B0914),
-      onBackground: Colors.white,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
