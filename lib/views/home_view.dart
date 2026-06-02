@@ -10,6 +10,7 @@ import 'search_view.dart';
 import 'profile_view.dart';
 import 'my_tickets_view.dart';
 import 'staff_view.dart';
+import 'favorites_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -205,13 +206,32 @@ class _HomeContent extends StatelessWidget {
                             height: 40,
                             fit: BoxFit.contain,
                           ),
-                          IconButton(
-                            icon: Icon(
-                              Icons.favorite_border_rounded,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                            onPressed: () {},
+                          // Écoute en temps réel les favoris pour modifier l'icône du bouton
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('reminders')
+                                .where('userId', isEqualTo: user?.uid)
+                                .snapshots(),
+                            builder: (context, remindersSnapshot) {
+                              final bool hasFavorites = remindersSnapshot.hasData &&
+                                  remindersSnapshot.data!.docs.isNotEmpty;
+
+                              return IconButton(
+                                icon: Icon(
+                                  hasFavorites ? Icons.favorite : Icons.favorite_border_rounded,
+                                  color: hasFavorites ? const Color(0xFF9D4EDD) : Colors.white,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const FavoritesView(),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -223,7 +243,7 @@ class _HomeContent extends StatelessWidget {
                       description: mainEvent['description'] ?? '',
                       date: _formatDate(mainEvent['dateHeureEvent'] as Timestamp?),
                       hours: _formatHours(mainEvent['dateHeureEvent'] as Timestamp?),
-                      imageUrl: 'assets/soiree.png',
+                      imageUrl: mainEvent['image'] ?? 'assets/soiree.png',
                       onTap: () {
                         Navigator.push(
                           context,
@@ -306,7 +326,7 @@ class _HomeContent extends StatelessWidget {
             title: event['nom'] ?? 'Événement',
             date: _formatDate(event['dateHeureEvent'] as Timestamp?),
             hours: _formatHours(event['dateHeureEvent'] as Timestamp?),
-            imageUrl: 'assets/soiree.png',
+            imageUrl: event['image'] ?? 'assets/soiree.png',
             onTap: () {
               Navigator.push(
                 context,

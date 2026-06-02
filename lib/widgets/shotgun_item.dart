@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:convert'; // Import requis pour base64Decode
 import 'package:flutter/material.dart';
 
 class ShotgunItem extends StatelessWidget {
@@ -10,7 +11,7 @@ class ShotgunItem extends StatelessWidget {
 
   final double height;
   final double? width;
-  final VoidCallback? onTap; // Ajout du callback de clic
+  final VoidCallback? onTap;
 
   const ShotgunItem({
     super.key,
@@ -23,6 +24,38 @@ class ShotgunItem extends StatelessWidget {
     this.width = 118.0,
     this.onTap,
   });
+
+  Widget _buildImage() {
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
+
+    if (imageUrl.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(imageUrl),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+        );
+      } catch (e) {
+        return _buildPlaceholder();
+      }
+    }
+
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder() {
+    return Image.asset(
+      'assets/evenement.png',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey[900]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,22 +76,16 @@ class ShotgunItem extends StatelessWidget {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap, // Utilisation du onTap dynamique
+            onTap: onTap,
             child: Stack(
               children: [
                 Positioned.fill(
                   child: Container(color: Colors.transparent),
                 ),
 
-                // 1. L'IMAGE DE FOND
+                // 1. L'IMAGE DE FOND (Gère Asset et Base64)
                 Positioned.fill(
-                  child: Image.asset(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(color: Colors.grey[900]);
-                    },
-                  ),
+                  child: _buildImage(),
                 ),
 
                 // 2. LA ZONE DE FLOU PROGRESSIVE
@@ -80,7 +107,7 @@ class ShotgunItem extends StatelessWidget {
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
                       child: Container(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                       ),
                     ),
                   ),
