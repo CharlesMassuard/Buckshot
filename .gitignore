@@ -47,3 +47,4 @@ app.*.map.json
 .idea/vcs.xml
 
 .idea
+pubspec.lock
