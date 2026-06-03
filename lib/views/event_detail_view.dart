@@ -9,12 +9,12 @@ import '../services/notification_service.dart';
 
 class EventDetailView extends StatefulWidget {
   final String eventId;
-  final Map<String, dynamic> eventData;
+  final Map<String, dynamic>? eventData;
 
   const EventDetailView({
     super.key,
     required this.eventId,
-    required this.eventData,
+    this.eventData,
   });
 
   @override
@@ -183,6 +183,7 @@ class _EventDetailViewState extends State<EventDetailView> {
               title: '🔥 SHOTGUN OUVERT !',
               body: _openBilleterieNotificationMessage(eventName),
               scheduledDate: scheduledDateTime,
+              payload: eventId,
             );
             _showSnackBar("Ajouté aux favoris ! Alerte enregistrée. 🔔🚀", isSuccess: true);
           } else {
@@ -348,13 +349,6 @@ class _EventDetailViewState extends State<EventDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.eventData['nom'] ?? 'Événement';
-    final description = widget.eventData['description'] ?? 'Aucune description.';
-    final lieu = widget.eventData['lieu'] ?? 'Lieu non spécifié';
-    final idOrganisateur = widget.eventData['idOrganisateur'] ?? '';
-    final capaciteMax = widget.eventData['capaciteMax'] ?? 0;
-    final currentUser = FirebaseAuth.instance.currentUser;
-
     if (_isLoadingUser) {
       return const Scaffold(
         backgroundColor: Color(0xFF0B0914),
@@ -362,32 +356,49 @@ class _EventDetailViewState extends State<EventDetailView> {
       );
     }
 
-    final bool isMyOwnOrganisedEvent = (_userRole == 'ORGANISATEUR' && _useridOrganisateur == idOrganisateur);
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('events').doc(widget.eventId).snapshots(),
         builder: (context, eventSnapshot) {
-          int placesRestantes = widget.eventData['placesRestantes'] ?? 0;
-          Timestamp? dateHeure = widget.eventData['dateHeureEvent'] as Timestamp?;
-          Timestamp? dateOuvertureBilletterie = widget.eventData['dateOuvertureBilletterie'] as Timestamp?;
-          Timestamp? dateFinEvent = widget.eventData['dateFinEvent'] as Timestamp?;
-          String eventImageBase64 = widget.eventData['image'] ?? '';
-
-          if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
-            final freshData = eventSnapshot.data!.data() as Map<String, dynamic>;
-            placesRestantes = freshData['placesRestantes'] ?? placesRestantes;
-            dateHeure = freshData['dateHeureEvent'] as Timestamp? ?? dateHeure;
-            dateOuvertureBilletterie = freshData['dateOuvertureBilletterie'] as Timestamp? ?? dateOuvertureBilletterie;
-            dateFinEvent = freshData['dateFinEvent'] as Timestamp? ?? dateFinEvent;
-            eventImageBase64 = freshData['image'] ?? eventImageBase64;
+          if (eventSnapshot.connectionState == ConnectionState.waiting && widget.eventData == null) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
           }
+
+          Map<String, dynamic> activeData = {};
+          if (widget.eventData != null) {
+            activeData.addAll(widget.eventData!);
+          }
+          if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
+            activeData.addAll(eventSnapshot.data!.data() as Map<String, dynamic>);
+          }
+
+          if (activeData.isEmpty) {
+            return Scaffold(
+              backgroundColor: const Color(0xFF0B0914),
+              appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context))),
+              body: Center(child: Text("Impossible de charger l'événement 😢", style: GoogleFonts.jura(color: Colors.white, fontSize: 16))),
+            );
+          }
+
+          final title = activeData['nom'] ?? 'Événement';
+          final description = activeData['description'] ?? 'Aucune description.';
+          final lieu = activeData['lieu'] ?? 'Lieu non spécifié';
+          final idOrganisateur = activeData['idOrganisateur'] ?? '';
+          final capaciteMax = activeData['capaciteMax'] ?? 0;
+          final int placesRestantes = activeData['placesRestantes'] ?? 0;
+          final Timestamp? dateHeure = activeData['dateHeureEvent'] as Timestamp?;
+          final Timestamp? dateOuvertureBilletterie = activeData['dateOuvertureBilletterie'] as Timestamp?;
+          final Timestamp? dateFinEvent = activeData['dateFinEvent'] as Timestamp?;
+          final String eventImageBase64 = activeData['image'] ?? '';
 
           final now = DateTime.now();
           final bool isPast = dateHeure != null && dateHeure.toDate().isBefore(now);
           final bool noPlacesLeft = placesRestantes <= 0;
           final bool isBilletterieLocked = dateOuvertureBilletterie != null && dateOuvertureBilletterie.toDate().isAfter(now);
+          final bool isMyOwnOrganisedEvent = (_userRole == 'ORGANISATEUR' && _useridOrganisateur == idOrganisateur);
 
           return StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
