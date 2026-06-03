@@ -49,7 +49,10 @@ class _ScannerViewState extends State<ScannerView> {
 
     if (timestampEnd != null) {
       final DateTime end = timestampEnd.toDate();
-      final String timeRange = "${formatTime(start)}-${formatTime(end)}";
+      if (start.day != end.day) {
+        return "${formatter.format(start)} ${formatTime(start)} - ${formatter.format(end)} ${formatTime(end)}";
+      }
+      final String timeRange = "${formatTime(start)} - ${formatTime(end)}";
       return "${formatter.format(start)} | $timeRange";
     }
     
@@ -101,11 +104,15 @@ class _ScannerViewState extends State<ScannerView> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              _formatEventDate(eventDate, eventDateFin),
-              style: GoogleFonts.jura(
-                fontSize: 16,
-                color: Colors.grey[300],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Text(
+                _formatEventDate(eventDate, eventDateFin),
+                style: GoogleFonts.jura(
+                  fontSize: 16,
+                  color: Colors.grey[300],
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
             Expanded(
