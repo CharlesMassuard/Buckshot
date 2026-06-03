@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'ticket_detail_view.dart';
 import 'create_event_view.dart';
+import 'event_detail_view.dart';
 
 class MyTicketsView extends StatefulWidget {
   const MyTicketsView({super.key});
@@ -189,11 +190,11 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bool isElevatedUser = (_userRole == 'ORGANISATEUR' || _userRole == 'STAFF');
+    final bool isOrganizer = (_userRole == 'ORGANISATEUR');
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
-      floatingActionButton: (isElevatedUser && !_isShowingTickets)
+      floatingActionButton: (isOrganizer && !_isShowingTickets)
           ? FloatingActionButton(
         backgroundColor: const Color(0xFF9D4EDD),
         shape: const CircleBorder(),
@@ -213,7 +214,7 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: isElevatedUser
+              child: isOrganizer
                   ? Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -384,6 +385,16 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
                     return SlideTransition(position: animation.drive(tween), child: child);
                   },
                   transitionDuration: const Duration(milliseconds: 400),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EventDetailView(
+                    eventId: item['eventId'],
+                    eventData: item['rawEventData'],
+                  ),
                 ),
               );
             }
