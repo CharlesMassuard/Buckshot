@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:convert';
 import 'event_detail_view.dart';
 
 class FavoritesView extends StatelessWidget {
@@ -30,6 +31,38 @@ class FavoritesView extends StatelessWidget {
     }
 
     return "${formatter.format(start)} ${start.year} | ${formatTime(start)}";
+  }
+
+  Widget _buildEventImage(String base64Image) {
+    if (base64Image.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(base64Image),
+          width: 90,
+          height: 90,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildAssetPlaceholder(),
+        );
+      } catch (e) {
+        return _buildAssetPlaceholder();
+      }
+    }
+    return _buildAssetPlaceholder();
+  }
+
+  Widget _buildAssetPlaceholder() {
+    return Image.asset(
+      'assets/soiree.png',
+      width: 90,
+      height: 90,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        width: 90,
+        height: 90,
+        color: Colors.grey[800],
+        child: const Icon(Icons.image, color: Colors.white54),
+      ),
+    );
   }
 
   @override
@@ -125,9 +158,9 @@ class FavoritesView extends StatelessWidget {
                             final event = eventSnapshot.data!.data() as Map<String, dynamic>;
                             final String eventNom = event['nom'] ?? 'Événement';
                             final String eventLieu = event['lieu'] ?? 'Lieu non spécifié';
-                            final String eventImage = event['imageUrl'] ?? 'assets/soiree.png';
                             final Timestamp? eventDate = event['dateHeureEvent'] as Timestamp?;
                             final Timestamp? eventDateFin = event['dateFinEvent'] as Timestamp?;
+                            final String eventImageBase64 = event['image'] ?? '';
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 20),
@@ -148,20 +181,7 @@ class FavoritesView extends StatelessWidget {
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child: Image.asset(
-                                        eventImage,
-                                        width: 90,
-                                        height: 90,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            width: 90,
-                                            height: 90,
-                                            color: Colors.grey[800],
-                                            child: const Icon(Icons.image, color: Colors.white54),
-                                          );
-                                        },
-                                      ),
+                                      child: _buildEventImage(eventImageBase64),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
