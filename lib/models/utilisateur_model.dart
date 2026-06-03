@@ -29,7 +29,7 @@ class EventModel {
       email: data['email'] ?? '',
       role: Role.values.firstWhere(
         (r) => r.name == data['role'], 
-        orElse: () => Role.etudiant, 
+        orElse: () => Role.ETUDIANT, 
       ),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     );
