@@ -10,7 +10,7 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
-  Future<void> initNotification() async {
+  Future<void> initNotification({Function(String?)? onNotificationClick}) async {
     tz.initializeTimeZones();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -29,8 +29,24 @@ class NotificationService {
 
     await _notificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {},
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (onNotificationClick != null && response.payload != null) {
+          onNotificationClick(response.payload);
+        }
+      },
     );
+
+    final NotificationAppLaunchDetails? launchDetails = 
+        await _notificationsPlugin.getNotificationAppLaunchDetails();
+        
+    if (launchDetails != null && launchDetails.didNotificationLaunchApp) {
+      final String? payload = launchDetails.notificationResponse?.payload;
+      if (onNotificationClick != null && payload != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          onNotificationClick(payload);
+        });
+      }
+    }
   }
 
   Future<void> checkExactAlarmPermission() async {
@@ -78,6 +94,7 @@ class NotificationService {
     String? title,
     String? body,
     required DateTime scheduledDate,
+    String? payload,
   }) async {
     await _notificationsPlugin.zonedSchedule(
       id,
@@ -87,6 +104,7 @@ class NotificationService {
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      payload: payload,
     );
   }
 
