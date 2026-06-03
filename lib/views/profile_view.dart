@@ -204,7 +204,7 @@ class _ProfileViewState extends State<ProfileView> {
         'idOrganisateur': '',
         'role': 'USER',
       });
-      _showSnackBar("$staffName a été retiré du staff avec succès. 🫡", isSuccess: true);
+      _showSnackBar("$staffName a été retiré de la structure avec succès. 🫡", isSuccess: true);
     } catch (e) {
       _showSnackBar("Impossible de retirer ce membre : $e");
     }
@@ -253,7 +253,7 @@ class _ProfileViewState extends State<ProfileView> {
         return AlertDialog(
           backgroundColor: Theme.of(context).colorScheme.surface,
           title: Text(
-            "Retirer du Staff",
+            "Retirer de la structure",
             style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           content: Text(
@@ -789,46 +789,93 @@ class _ProfileViewState extends State<ProfileView> {
                         stream: FirebaseFirestore.instance
                             .collection('users')
                             .where('idOrganisateur', isEqualTo: currentOrg)
-                            .where('role', isEqualTo: 'STAFF')
                             .snapshots(),
                         builder: (context, staffSnapshot) {
                           if (staffSnapshot.connectionState == ConnectionState.waiting) {
                             return const Center(child: CircularProgressIndicator());
                           }
                           final staffDocs = staffSnapshot.data?.docs ?? [];
+                          
+                          final filteredStaffDocs = staffDocs.where((doc) => doc.id != user?.uid).toList();
 
-                          if (staffDocs.isEmpty) {
+                          if (filteredStaffDocs.isEmpty) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8.0),
                               child: Text(
-                                "Aucun membre dans votre staff pour le moment. 👥",
+                                "Aucun autre membre dans votre structure pour le moment. 👥",
                                 style: GoogleFonts.jura(color: Colors.grey, fontSize: 14, fontStyle: FontStyle.italic),
                               ),
                             );
                           }
 
+                          filteredStaffDocs.sort((a, b) {
+                            final roleA = (a.data() as Map<String, dynamic>)['role'] ?? 'STAFF';
+                            final roleB = (b.data() as Map<String, dynamic>)['role'] ?? 'STAFF';
+                            if (roleA == 'ORGANISATEUR' && roleB != 'ORGANISATEUR') return -1;
+                            if (roleA != 'ORGANISATEUR' && roleB == 'ORGANISATEUR') return 1;
+                            return 0;
+                          });
+
                           return ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: staffDocs.length,
+                            itemCount: filteredStaffDocs.length,
                             separatorBuilder: (context, index) => Divider(color: theme.colorScheme.surfaceContainerHighest, height: 1),
                             itemBuilder: (context, index) {
-                              final staffData = staffDocs[index].data() as Map<String, dynamic>;
+                              final staffData = filteredStaffDocs[index].data() as Map<String, dynamic>;
                               final String sPrenom = staffData['prenom'] ?? '';
                               final String sNom = staffData['nom'] ?? '';
                               final String sEmail = staffData['email'] ?? '';
-                              final String staffId = staffDocs[index].id;
+                              final String sRole = staffData['role'] ?? 'STAFF';
+                              final String staffId = filteredStaffDocs[index].id;
                               final String fullName = "$sPrenom $sNom";
+
+                              final bool isMemberOrganizer = sRole == 'ORGANISATEUR';
 
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
-                                title: Text(fullName, style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                                subtitle: Text(sEmail, style: GoogleFonts.jura(color: Colors.grey, fontSize: 13)),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.person_remove_alt_1_rounded, color: Colors.redAccent, size: 22),
-                                  tooltip: "Retirer du staff",
-                                  onPressed: () => _showRemoveStaffDialog(context, staffId, fullName),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        fullName, 
+                                        style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isMemberOrganizer 
+                                            ? const Color(0xFF4EA8DE).withValues(alpha: 0.15) 
+                                            : const Color(0xFF9D4EDD).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: isMemberOrganizer ? const Color(0xFF4EA8DE) : const Color(0xFF9D4EDD),
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        isMemberOrganizer ? "Organisateur" : "Staff",
+                                        style: GoogleFonts.jura(
+                                          color: isMemberOrganizer ? const Color(0xFF4EA8DE) : const Color(0xFFB776EE),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                subtitle: Text(sEmail, style: GoogleFonts.jura(color: Colors.grey, fontSize: 13)),
+                                trailing: isMemberOrganizer
+                                    ? null
+                                    : IconButton(
+                                        icon: const Icon(Icons.person_remove_alt_1_rounded, color: Colors.redAccent, size: 22),
+                                        tooltip: "Retirer de la structure",
+                                        onPressed: () => _showRemoveStaffDialog(context, staffId, fullName),
+                                      ),
                               );
                             },
                           );
