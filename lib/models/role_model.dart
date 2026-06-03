@@ -1,7 +1,7 @@
 enum Role {
-  etudiant,
-  staff,
-  organisateur,
-  admin,
+  ETUDIANT,
+  STAFF,
+  ORGANISATEUR,
+  ADMIN,
   unknown 
 }
