@@ -19,14 +19,9 @@ class TicketDetailView extends StatelessWidget {
     return DateFormat('E dd MMM yyyy', 'fr_FR').format(timestamp.toDate());
   }
 
-  String _formatHours(Timestamp? timestampStart, Timestamp? timestampEnd) {
-    if (timestampStart == null) return '--h';
-    final startStr = DateFormat('HH\'h\'mm').format(timestampStart.toDate()).replaceAll('00', '');
-    if (timestampEnd != null) {
-      final endStr = DateFormat('HH\'h\'mm').format(timestampEnd.toDate()).replaceAll('00', '');
-      return "$startStr-$endStr";
-    }
-    return startStr;
+  String _formatHours(Timestamp? timestamp) {
+    if (timestamp == null) return '--h--';
+    return DateFormat('HH\'h\'mm').format(timestamp.toDate()).replaceAll('00', '');
   }
 
   Widget _buildTicketImage(String base64Image) {
@@ -69,6 +64,10 @@ class TicketDetailView extends StatelessWidget {
     final String eventImageBase64 = ticketData['eventImage'] ?? '';
     final Timestamp? eventDate = ticketData['eventDate'] as Timestamp?;
     final Timestamp? eventDateFin = ticketData['eventDateFin'] as Timestamp?;
+
+    final bool hasDifferentEndDay = eventDate != null && 
+        eventDateFin != null && 
+        eventDate.toDate().day != eventDateFin.toDate().day;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
@@ -158,28 +157,62 @@ class TicketDetailView extends StatelessWidget {
                           ),
                     const SizedBox(height: 20),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatDate(eventDate),
-                            style: GoogleFonts.jura(
-                              fontSize: 14,
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.w500,
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
+                      child: hasDifferentEndDay
+                          ? Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "Du",
+                                      style: GoogleFonts.jura(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      "${_formatDate(eventDate)} à ${_formatHours(eventDate)}",
+                                      style: GoogleFonts.jura(fontSize: 14, color: Colors.grey[900], fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "au",
+                                      style: GoogleFonts.jura(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      "${_formatDate(eventDateFin)} à ${_formatHours(eventDateFin)}",
+                                      style: GoogleFonts.jura(fontSize: 14, color: Colors.grey[900], fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDate(eventDate),
+                                  style: GoogleFonts.jura(
+                                    fontSize: 14,
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text(
+                                  eventDateFin != null
+                                      ? "${_formatHours(eventDate)} - ${_formatHours(eventDateFin)}"
+                                      : _formatHours(eventDate),
+                                  style: GoogleFonts.jura(
+                                    fontSize: 14,
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            _formatHours(eventDate, eventDateFin),
-                            style: GoogleFonts.jura(
-                              fontSize: 14,
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),

@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import 'ticket_detail_view.dart';
 import 'create_event_view.dart';
+import 'event_detail_view.dart';
 
 class MyTicketsView extends StatefulWidget {
   const MyTicketsView({super.key});
@@ -189,11 +190,11 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bool isElevatedUser = (_userRole == 'ORGANISATEUR' || _userRole == 'STAFF');
+    final bool isOrganizer = (_userRole == 'ORGANISATEUR');
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
-      floatingActionButton: (isElevatedUser && !_isShowingTickets)
+      floatingActionButton: (isOrganizer && !_isShowingTickets)
           ? FloatingActionButton(
         backgroundColor: const Color(0xFF9D4EDD),
         shape: const CircleBorder(),
@@ -207,27 +208,55 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
       )
           : null,
       body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: isElevatedUser
-                  ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => setState(() => _isShowingTickets = true),
-                    child: Text(
-                      'Mes Billets',
-                      style: GoogleFonts.jura(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: _isShowingTickets ? Colors.white : Colors.grey[600],
-                        decoration: _isShowingTickets ? TextDecoration.underline : TextDecoration.none,
-                        decorationColor: theme.colorScheme.secondary,
-                        decorationThickness: 2,
+        child: StreamBuilder<List<Map<String, dynamic>>>(
+          stream: _isShowingTickets ? _getUserTicketsStream() : _getOrganiserEventsStream(),
+          builder: (context, snapshot) {
+            final items = snapshot.data ?? [];
+            final now = DateTime.now();
+
+            final upcomingItems = items.where((item) {
+              final Timestamp? start = item['eventDate'];
+              return start != null && start.toDate().isAfter(now);
+            }).toList();
+
+            final ongoingItems = items.where((item) {
+              final Timestamp? start = item['eventDate'];
+              final Timestamp? end = item['eventDateFin'];
+              if (start == null) return false;
+              final startDate = start.toDate();
+              final endDate = end?.toDate() ?? startDate.add(const Duration(hours: 4));
+              return startDate.isBefore(now) && endDate.isAfter(now);
+            }).toList();
+
+            final pastItems = items.where((item) {
+              final Timestamp? start = item['eventDate'];
+              final Timestamp? end = item['eventDateFin'];
+              if (start == null) return true;
+              final endDate = end?.toDate() ?? start.toDate().add(const Duration(hours: 4));
+              return endDate.isBefore(now);
+            }).toList();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: isOrganizer
+                      ? Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => setState(() => _isShowingTickets = true),
+                        child: Text(
+                          'Mes Billets',
+                          style: GoogleFonts.jura(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: _isShowingTickets ? Colors.white : Colors.grey[600],
+                            decoration: _isShowingTickets ? TextDecoration.underline : TextDecoration.none,
+                            decorationColor: theme.colorScheme.secondary,
+                            decorationThickness: 2,
                       ),
                     ),
                   ),
@@ -271,10 +300,10 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
                 unselectedLabelColor: Colors.grey[500],
                 labelStyle: GoogleFonts.jura(fontSize: 16, fontWeight: FontWeight.bold),
                 unselectedLabelStyle: GoogleFonts.jura(fontSize: 16),
-                tabs: const [
-                  Tab(text: 'A Venir'),
-                  Tab(text: 'En Cours'),
-                  Tab(text: 'Passés'),
+                tabs: [
+                  Tab(text: snapshot.connectionState == ConnectionState.waiting ? 'A Venir' : 'A Venir (${upcomingItems.length})'),
+                  Tab(text: snapshot.connectionState == ConnectionState.waiting ? 'En Cours' : 'En Cours (${ongoingItems.length})'),
+                  Tab(text: snapshot.connectionState == ConnectionState.waiting ? 'Passés' : 'Passés (${pastItems.length})'),
                 ],
               ),
             ),
@@ -282,55 +311,25 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: _isShowingTickets ? _getUserTicketsStream() : _getOrganiserEventsStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
-                    }
-
-                    final items = snapshot.data ?? [];
-                    final now = DateTime.now();
-
-                    final upcomingItems = items.where((item) {
-                      final Timestamp? start = item['eventDate'];
-                      return start != null && start.toDate().isAfter(now);
-                    }).toList();
-
-                    final ongoingItems = items.where((item) {
-                      final Timestamp? start = item['eventDate'];
-                      final Timestamp? end = item['eventDateFin'];
-                      if (start == null) return false;
-                      final startDate = start.toDate();
-                      final endDate = end?.toDate() ?? startDate.add(const Duration(hours: 4));
-                      return startDate.isBefore(now) && endDate.isAfter(now);
-                    }).toList();
-
-                    final pastItems = items.where((item) {
-                      final Timestamp? start = item['eventDate'];
-                      final Timestamp? end = item['eventDateFin'];
-                      if (start == null) return true;
-                      final endDate = end?.toDate() ?? start.toDate().add(const Duration(hours: 4));
-                      return endDate.isBefore(now);
-                    }).toList();
-
-                    return TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildList(upcomingItems),
-                        _buildList(ongoingItems),
-                        _buildList(pastItems),
-                      ],
-                    );
-                  },
+                child: snapshot.connectionState == ConnectionState.waiting
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)))
+                    : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildList(upcomingItems),
+                    _buildList(ongoingItems),
+                    _buildList(pastItems),
+                  ],
                 ),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  ),
+);
+}
 
   Widget _buildList(List<Map<String, dynamic>> items) {
     if (items.isEmpty) {
@@ -384,6 +383,16 @@ class _MyTicketsViewState extends State<MyTicketsView> with SingleTickerProvider
                     return SlideTransition(position: animation.drive(tween), child: child);
                   },
                   transitionDuration: const Duration(milliseconds: 400),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EventDetailView(
+                    eventId: item['eventId'],
+                    eventData: item['rawEventData'],
+                  ),
                 ),
               );
             }
