@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math';
 import 'dart:convert';
 import '../services/notification_service.dart';
+import 'manage_event_view.dart';
 
 class EventDetailView extends StatefulWidget {
   final String eventId;
@@ -175,7 +176,6 @@ class _EventDetailViewState extends State<EventDetailView> {
           'notified': false,
         });
 
-        // CORRECTION SÉCURISÉE : On vérifie si la date d'ouverture est dans le futur avant de planifier la notification
         if (dateOuverture != null) {
           final DateTime scheduledDateTime = dateOuverture.toDate();
           if (scheduledDateTime.isAfter(DateTime.now())) {
@@ -187,7 +187,6 @@ class _EventDetailViewState extends State<EventDetailView> {
             );
             _showSnackBar("Ajouté aux favoris ! Alerte enregistrée. 🔔🚀", isSuccess: true);
           } else {
-            // Si la billetterie est déjà en cours ou passée, pas de notification locale mais l'événement est quand même mis en favori
             _showSnackBar("Ajouté à ta liste d'intérêts ! ❤️", isSuccess: true);
           }
         } else {
@@ -440,7 +439,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
+                            SizedBox(
                               height: 250,
                               width: double.infinity,
                               child: _buildBannerImage(eventImageBase64),
@@ -538,13 +537,12 @@ class _EventDetailViewState extends State<EventDetailView> {
                           ],
                         ),
                       ),
-                      // BOUTON RETOUR (HAUT GAUCHE)
                       Positioned(
                         top: MediaQuery.of(context).padding.top + 10,
                         left: 10,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.3),
+                            color: Colors.black.withOpacity(0.3),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -553,13 +551,12 @@ class _EventDetailViewState extends State<EventDetailView> {
                           ),
                         ),
                       ),
-                      // BOUTON CŒUR FAVORIS (HAUT DROITE)
                       Positioned(
                         top: MediaQuery.of(context).padding.top + 10,
                         right: 10,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.4),
+                            color: Colors.black.withOpacity(0.4),
                             shape: BoxShape.circle,
                           ),
                           child: IconButton(
@@ -601,7 +598,15 @@ class _EventDetailViewState extends State<EventDetailView> {
                                   ? null
                                   : () {
                                 if (isMyOwnOrganisedEvent) {
-                                  _showSnackBar("Ouverture du panel de gestion... 📊", isSuccess: true);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ManageEventView(
+                                        eventId: widget.eventId,
+                                        eventData: widget.eventData,
+                                      ),
+                                    ),
+                                  );
                                 } else if (isBilletterieLocked) {
                                   _toggleRappel(widget.eventId, title, dateOuvertureBilletterie, hasReminder);
                                 } else {
@@ -642,8 +647,8 @@ class _EventDetailViewState extends State<EventDetailView> {
                               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                               decoration: BoxDecoration(
                                 color: hasTicket
-                                    ? const Color(0xFF2EC4B6).withValues(alpha: 0.2)
-                                    : (hasReminder ? const Color(0xFF9D4EDD).withValues(alpha: 0.15) : Colors.grey[900]),
+                                    ? const Color(0xFF2EC4B6).withOpacity(0.2)
+                                    : (hasReminder ? const Color(0xFF9D4EDD).withOpacity(0.15) : Colors.grey[900]),
                                 borderRadius: BorderRadius.circular(15),
                                 border: Border.all(
                                     color: hasTicket

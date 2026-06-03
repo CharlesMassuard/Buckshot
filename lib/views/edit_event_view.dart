@@ -3,22 +3,27 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 
-import 'package:buckshot/models/event_model.dart';
 import 'package:buckshot/buckshot_theme.dart';
 
-class CreateEventView extends StatefulWidget {
-  const CreateEventView({super.key});
+class EditEventView extends StatefulWidget {
+  final String eventId;
+  final Map<String, dynamic> eventData;
+
+  const EditEventView({
+    super.key,
+    required this.eventId,
+    required this.eventData,
+  });
 
   @override
-  State<CreateEventView> createState() => _CreateEventViewState();
+  State<EditEventView> createState() => _EditEventViewState();
 }
 
-class _CreateEventViewState extends State<CreateEventView> {
+class _EditEventViewState extends State<EditEventView> {
   DateTime? selectedStartDate;
   TimeOfDay? selectedStartTime;
   DateTime? selectedEndDate;
@@ -27,18 +32,56 @@ class _CreateEventViewState extends State<CreateEventView> {
   TimeOfDay? selectedOpenTime;
   DateTime? selectedCloseDate;
   TimeOfDay? selectedCloseTime;
-  File? _image;
+
+  File? _imageFile;
+  String _currentBase64Image = '';
   bool _isLoading = false;
 
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _seatsController = TextEditingController();
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _locationController;
+  late TextEditingController _seatsController;
 
   final Color neonPink = const Color(0xFFE5097F);
   final Color neonPurple = const Color(0xFF9146FF);
   final Color darkInputBg = const Color(0xFF1D1B26);
   final Color neonGlowColor = const Color(0xFF5D1F9B);
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.eventData['nom'] ?? '');
+    _descriptionController = TextEditingController(text: widget.eventData['description'] ?? '');
+    _locationController = TextEditingController(text: widget.eventData['lieu'] ?? '');
+    _seatsController = TextEditingController(text: (widget.eventData['capaciteMax'] ?? 0).toString());
+
+    _currentBase64Image = widget.eventData['image'] ?? '';
+
+    _parseFirestoreDates();
+  }
+
+  void _parseFirestoreDates() {
+    if (widget.eventData['dateHeureEvent'] is Timestamp) {
+      final dt = (widget.eventData['dateHeureEvent'] as Timestamp).toDate();
+      selectedStartDate = dt;
+      selectedStartTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
+    }
+    if (widget.eventData['dateFinEvent'] is Timestamp) {
+      final dt = (widget.eventData['dateFinEvent'] as Timestamp).toDate();
+      selectedEndDate = dt;
+      selectedEndTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
+    }
+    if (widget.eventData['dateOuvertureBilletterie'] is Timestamp) {
+      final dt = (widget.eventData['dateOuvertureBilletterie'] as Timestamp).toDate();
+      selectedOpenDate = dt;
+      selectedOpenTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
+    }
+    if (widget.eventData['dateFermetureBilletterie'] is Timestamp) {
+      final dt = (widget.eventData['dateFermetureBilletterie'] as Timestamp).toDate();
+      selectedCloseDate = dt;
+      selectedCloseTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
+    }
+  }
 
   void _showImageSourcePicker() {
     showModalBottomSheet(
@@ -64,7 +107,7 @@ class _CreateEventViewState extends State<CreateEventView> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  "Ajouter une affiche",
+                  "Modifier l'affiche",
                   style: GoogleFonts.jura(
                     color: Colors.white,
                     fontSize: 18,
@@ -110,7 +153,7 @@ class _CreateEventViewState extends State<CreateEventView> {
 
     if (pickedFile != null) {
       setState(() {
-        _image = File(pickedFile.path);
+        _imageFile = File(pickedFile.path);
       });
     }
   }
@@ -129,7 +172,7 @@ class _CreateEventViewState extends State<CreateEventView> {
   }
 
   Future<String?> imageToBase64(File? imageFile) async {
-    if (imageFile == null) return "";
+    if (imageFile == null) return _currentBase64Image;
 
     final resizedFile = await resizeImage(imageFile, maxWidth: 400);
     final bytes = await resizedFile.readAsBytes();
@@ -144,11 +187,10 @@ class _CreateEventViewState extends State<CreateEventView> {
 
   void _showSnackBar(String message, {bool isSuccess = false}) {
     if (!mounted) return;
-    final theme = Theme.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: GoogleFonts.jura(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: isSuccess ? BuckshotTheme.successColor.withValues(alpha: 0.8) : theme.colorScheme.error,
+        backgroundColor: isSuccess ? const Color(0xFF2EC4B6) : const Color(0xFFE63946),
         duration: const Duration(seconds: 4),
       ),
     );
@@ -219,7 +261,7 @@ class _CreateEventViewState extends State<CreateEventView> {
     return "$formattedDate à $formattedTime";
   }
 
-  void _validate() async {
+  void _validateAndSave() async {
     if (_titleController.text.trim().isEmpty) {
       _showSnackBar("Le titre de l'événement est obligatoire ! 🏷️");
       return;
@@ -252,65 +294,48 @@ class _CreateEventViewState extends State<CreateEventView> {
       _showSnackBar("Le nombre de places doit être un nombre valide ! 🎟️");
       return;
     }
-    if (_image == null) {
-      _showSnackBar("L'affiche de l'événement est obligatoire ! 🖼️");
-      return;
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) {
-        _showSnackBar("Utilisateur introuvable.");
+      final String? base64ResultImage = await imageToBase64(_imageFile);
+      if (base64ResultImage == null) {
         setState(() => _isLoading = false);
         return;
       }
 
-      final data = userDoc.data() as Map<String, dynamic>;
-      final String? idOrganisateur = data['idOrganisateur'];
+      final int newCapaciteMax = int.parse(_seatsController.text.trim());
+      final int oldCapaciteMax = widget.eventData['capaciteMax'] ?? 0;
+      final int oldPlacesRestantes = widget.eventData['placesRestantes'] ?? 0;
 
-      if (idOrganisateur == null || idOrganisateur.isEmpty) {
-        _showSnackBar("Vous devez faire partie d'une organisation pour créer un événement !");
-        setState(() => _isLoading = false);
-        return;
-      }
+      final int placesVendues = oldCapaciteMax - oldPlacesRestantes;
+      final int newPlacesRestantes = (newCapaciteMax - placesVendues).clamp(0, newCapaciteMax);
 
-      final resizedImage = await imageToBase64(_image);
-      if (resizedImage == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      final DateTime finalStartDate = DateTime(selectedStartDate!.year, selectedStartDate!.month, selectedStartDate!.day, selectedStartTime!.hour, selectedStartTime!.minute);
+      final DateTime finalEndDate = DateTime(selectedEndDate!.year, selectedEndDate!.month, selectedEndDate!.day, selectedEndTime!.hour, selectedEndTime!.minute);
+      final DateTime finalOpenDate = DateTime(selectedOpenDate!.year, selectedOpenDate!.month, selectedOpenDate!.day, selectedOpenTime!.hour, selectedOpenTime!.minute);
+      final DateTime finalCloseDate = DateTime(selectedCloseDate!.year, selectedCloseDate!.month, selectedCloseDate!.day, selectedCloseTime!.hour, selectedCloseTime!.minute);
 
-      final String key = "event_${_titleController.text.trim()}_${DateTime.now().millisecondsSinceEpoch}";
+      await FirebaseFirestore.instance.collection('events').doc(widget.eventId).update({
+        'nom': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'lieu': _locationController.text.trim(),
+        'capaciteMax': newCapaciteMax,
+        'placesRestantes': newPlacesRestantes,
+        'dateHeureEvent': Timestamp.fromDate(finalStartDate),
+        'dateFinEvent': Timestamp.fromDate(finalEndDate),
+        'dateOuvertureBilletterie': Timestamp.fromDate(finalOpenDate),
+        'dateFermetureBilletterie': Timestamp.fromDate(finalCloseDate),
+        'image': base64ResultImage,
+      });
 
-      final EventModel eventModel = EventModel(
-        id: key,
-        nom: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        idOrganisateur: idOrganisateur,
-        capaciteMax: int.parse(_seatsController.text),
-        placesRestantes: int.parse(_seatsController.text),
-        lieu: _locationController.text.trim(),
-        dateHeureEvent: DateTime(selectedStartDate!.year, selectedStartDate!.month, selectedStartDate!.day, selectedStartTime!.hour, selectedStartTime!.minute),
-        dateFinEvent: DateTime(selectedEndDate!.year, selectedEndDate!.month, selectedEndDate!.day, selectedEndTime!.hour, selectedEndTime!.minute),
-        dateOuvertureBilletterie: DateTime(selectedOpenDate!.year, selectedOpenDate!.month, selectedOpenDate!.day, selectedOpenTime!.hour, selectedOpenTime!.minute),
-        dateFermetureBilletterie: DateTime(selectedCloseDate!.year, selectedCloseDate!.month, selectedCloseDate!.day, selectedCloseTime!.hour, selectedCloseTime!.minute),
-        image: resizedImage,
-      );
-
-      await FirebaseFirestore.instance.collection('events').add(eventModel.toFirestore());
-
-      _showSnackBar("Événement créé avec succès ! 🚀", isSuccess: true);
+      _showSnackBar("Événement modifié avec succès ! 🛠️✨", isSuccess: true);
 
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
-      _showSnackBar("Erreur lors de la création de l'événement : $e");
+      _showSnackBar("Erreur lors de la modification de l'événement : $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -404,7 +429,7 @@ class _CreateEventViewState extends State<CreateEventView> {
         backgroundColor: const Color(0xFF0D0B14),
         appBar: AppBar(
           title: Text(
-            'Gestion d’évènement',
+            'Modifier l’évènement',
             style: GoogleFonts.jura(color: neonPink, fontWeight: FontWeight.bold, fontSize: 24),
           ),
           centerTitle: true,
@@ -421,10 +446,10 @@ class _CreateEventViewState extends State<CreateEventView> {
             decoration: BoxDecoration(
               color: const Color(0xFF12101A),
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: neonGlowColor.withValues(alpha: 0.3), width: 1.5),
+              border: Border.all(color: neonGlowColor.withOpacity(0.3), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: neonGlowColor.withValues(alpha: 0.4),
+                  color: neonGlowColor.withOpacity(0.4),
                   blurRadius: 40,
                   spreadRadius: 2,
                 ),
@@ -498,14 +523,14 @@ class _CreateEventViewState extends State<CreateEventView> {
                   ),
                   icon: Icon(Icons.add_a_photo_outlined, color: neonPink, size: 22),
                   label: Text(
-                    _image != null ? "Modifier la photo" : "Ajouter une photo",
+                    (_imageFile != null || _currentBase64Image.isNotEmpty) ? "Modifier la photo" : "Ajouter une photo",
                     style: GoogleFonts.jura(color: neonPink, fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
-                if (_image != null)
+                if (_imageFile != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 24),
                     width: double.infinity,
@@ -516,7 +541,21 @@ class _CreateEventViewState extends State<CreateEventView> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(19),
-                      child: Image.file(_image!, fit: BoxFit.cover),
+                      child: Image.file(_imageFile!, fit: BoxFit.cover),
+                    ),
+                  )
+                else if (_currentBase64Image.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    width: double.infinity,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white10, width: 1),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(19),
+                      child: Image.memory(base64Decode(_currentBase64Image), fit: BoxFit.cover),
                     ),
                   ),
 
@@ -526,11 +565,11 @@ class _CreateEventViewState extends State<CreateEventView> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: neonPurple,
-                      disabledBackgroundColor: neonPurple.withValues(alpha: 0.3),
+                      disabledBackgroundColor: neonPurple.withOpacity(0.3),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    onPressed: _isLoading ? null : _validate,
+                    onPressed: _isLoading ? null : _validateAndSave,
                     child: _isLoading
                         ? const SizedBox(
                       height: 24,
@@ -543,7 +582,7 @@ class _CreateEventViewState extends State<CreateEventView> {
                         const Icon(Icons.save_outlined, color: Colors.white, size: 26),
                         const SizedBox(width: 12),
                         Text(
-                          "Créer l’évènement",
+                          "Sauvegarder",
                           style: GoogleFonts.jura(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ],
