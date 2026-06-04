@@ -166,7 +166,7 @@ Dès lors qu'un qrcode est scanné, plusieurs cas sont possibles :
 
 Une fois la page de résultat du scan affichée, le staff peut appuyer sur un bouton pour revenir à la page de scan et scanner le billet suivant, ou attendre 5 secondes pour que l'application revienne automatiquement à la page de scan.
 
-![Pages de résultat d'un scan de billet](./imgs/resultsScans.PNG)
+![Pages de résultat d'un scan de billet](./imgs/resultsScans.png)
 *Pages de résultat d'un scan de billet*
 
 ## 7. Fonctionnalités de l'organisateur
