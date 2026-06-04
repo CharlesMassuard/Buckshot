@@ -108,6 +108,42 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
+  void _showSignOutConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          title: Text(
+            "Déconnexion",
+            style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            "Êtes-vous sûr de vouloir vous déconnecter de votre compte ?",
+            style: GoogleFonts.jura(color: Colors.grey[300]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text("Annuler", style: GoogleFonts.jura(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _signOut();
+              },
+              child: Text(
+                "Se déconnecter",
+                style: GoogleFonts.jura(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
     if (mounted) {
@@ -488,7 +524,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Text.rich(
       TextSpan(
         text: 'En utilisant notre application, vous acceptez nos \n',
-        style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 11, height: 1.4),
+        style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 14, height: 1.4),
         children: [
           TextSpan(
             text: 'mentions légales',
@@ -535,7 +571,7 @@ class _ProfileViewState extends State<ProfileView> {
         actions: [
           IconButton(
             icon: Icon(Icons.logout, color: theme.colorScheme.secondary, size: 28),
-            onPressed: _signOut,
+            onPressed: _showSignOutConfirmationDialog,
           ),
         ],
       ),
