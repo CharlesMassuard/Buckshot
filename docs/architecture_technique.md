@@ -1,618 +1,584 @@
-# Documentation technique Buckshot
+# Documentation technique - Buckshot
 
-## 1. Architecture Globale & Stack Technique
+## 1. Architecture globale & stack technique
 
-### Stack technique observee
+### Présentation générale
 
-Buckshot est une application Flutter multi-plateforme construite autour de Firebase. Le point d'entree applicatif est `lib/main.dart`, qui initialise Flutter, la localisation de dates `fr_FR`, les notifications locales, puis Firebase via `DefaultFirebaseOptions.currentPlatform`.
+Buckshot est une application Flutter dédiée à la gestion d'événements, de réservations de places sous forme de "shotguns", de billets QR Code et de contrôle d'accès par scan. L'application s'appuie sur Firebase pour l'authentification, le stockage des données métier et la configuration multi-plateforme.
 
-| Domaine | Technologies / packages | Usage constate dans le code |
+L'application Android est distribuée sous forme d'APK via Firebase App Distribution. Le projet Firebase associé est `buckshot-a9242`, avec l'application Android `com.shotgun.buckshot`.
+
+### Stack technique
+
+| Domaine | Technologie | Usage dans Buckshot |
 |---|---|---|
-| Framework UI | Flutter, Material 3 | Interfaces mobiles composees en `StatefulWidget` et `StatelessWidget`, theme sombre global via `BuckshotTheme.darkTheme`. |
-| Authentification | `firebase_auth` | Connexion, inscription, deconnexion, reset password, reauthentification avant changement de mot de passe et suppression de compte. |
-| Base de donnees | `cloud_firestore` | Stockage des utilisateurs, evenements, billets, favoris/rappels, organisations et demandes d'acces. |
-| Notifications locales | `flutter_local_notifications`, `timezone` | Planification d'une notification locale a l'ouverture de billetterie lorsqu'un utilisateur met un evenement en favori. |
-| QR code | `qr_flutter`, `mobile_scanner` | Generation du QR code billet depuis l'identifiant du document `billets`; scan mobile cote staff. |
-| Media | `image_picker`, `image` | Selection, redimensionnement et encodage Base64 des images d'evenements avant stockage dans Firestore. |
-| Internationalisation date | `intl` | Formatage francais des dates dans les vues evenements, tickets, recherche, staff et scanner. |
-| Documents Markdown | `flutter_markdown_plus` | Affichage de la politique de confidentialite depuis les assets Markdown. |
-| Typographie | `google_fonts` | Theme global Jura et usages directs dans plusieurs vues. |
+| Application mobile | Flutter, Dart | Interface utilisateur, navigation, formulaires, écrans de gestion et widgets réutilisables. |
+| Design system | Material 3, `BuckshotTheme`, Google Fonts Jura | Thème sombre global, palette Buckshot, typographie homogène. |
+| Authentification | Firebase Authentication | Connexion, inscription, réinitialisation de mot de passe, déconnexion, réauthentification avant actions sensibles. |
+| Base de données | Cloud Firestore | Utilisateurs, événements, billets, favoris/rappels, organisations et demandes d'accès. |
+| Notifications locales | `flutter_local_notifications`, `timezone` | Planification d'alertes locales à l'ouverture d'une billetterie et navigation vers l'événement au clic. |
+| QR Code | `qr_flutter`, `mobile_scanner` | Génération du QR Code d'un billet et scan côté staff/organisateur. |
+| Images | `image_picker`, `image` | Sélection depuis galerie/caméra, redimensionnement, conversion Base64 pour les affiches d'événements. |
+| Dates | `intl` | Formatage français des dates et heures (`fr_FR`). |
+| Documents légaux | `flutter_markdown_plus`, assets Markdown | Affichage des mentions légales et de la politique de confidentialité. |
+| Build Android | Gradle Kotlin DSL, Android namespace `com.shotgun.buckshot` | Génération APK et intégration Google Services. |
+| Distribution | Firebase App Distribution | Déploiement de l'APK aux testeurs ou parties prenantes. |
 
-Les plateformes configurees Firebase sont Web, Android, iOS, macOS et Windows. Linux n'est pas configure dans `firebase_options.dart`; `main.dart` capture l'erreur d'initialisation Firebase et affiche un ecran "Mode hors-ligne (Firebase desactive)".
+### Configuration Firebase
 
-### Structure des dossiers
+La configuration Firebase est générée dans `lib/firebase_options.dart` et référence le projet `buckshot-a9242`.
 
-| Dossier | Role |
-|---|---|
-| `lib/models/` | Modeles de conversion Firestore/Dart et enums metier. |
-| `lib/services/` | Services d'acces Firebase, notifications, scanner et seed. |
-| `lib/views/` | Ecrans principaux de l'application. Une part importante de la logique metier Firebase y reside encore. |
-| `lib/widgets/` | Composants UI reutilisables: champs, navigation, sections profil, liste de demandes, date picker. |
-| `assets/` | Logos, image fallback de soiree et fichiers Markdown juridiques. |
-| `android/`, `ios/`, `web/`, `windows/`, `macos/`, `linux/` | Cibles Flutter generees ou configurees. |
-
-### Architecture applicative constatee
-
-L'application ne suit pas une Clean Architecture stricte. Le pattern dominant est:
-
-- UI Flutter avec `StatefulWidget` pour les ecrans contenant formulaires, onglets, chargements ou etats locaux.
-- Services legers (`AuthService`, `UserService`, `EventService`, `ScannerService`, `DatabaseService`) pour certains acces transverses.
-- Acces Firestore directs dans de nombreuses vues, notamment `EventDetailView`, `ProfileView`, `MyTicketsView`, `StaffView`, `FavoritesView`, `SearchView` et `CreateEventView`.
-- Etat temps reel gere via `StreamBuilder` sur les collections/documents Firestore.
-- Navigation imperative via `Navigator.push`, `pushReplacement` et `pushAndRemoveUntil`.
-
-Cette architecture correspond davantage a un modele "Flutter MVC/MVVM pragmatique": les vues portent le controleur local et appellent Firestore directement, tandis que certains services centralisent des flux simples.
-
-```mermaid
-flowchart TD
-  A["main.dart"] --> B["Firebase.initializeApp"]
-  A --> C["NotificationService.initNotification"]
-  B --> D{"Firebase pret ?"}
-  D -- Non --> E["Ecran mode hors-ligne"]
-  D -- Oui --> F["StreamBuilder FirebaseAuth.authStateChanges"]
-  F -- User null --> G["LoginView"]
-  F -- User connecte --> H["HomeView"]
-
-  H --> I["UserService.getUserRole(users/{uid})"]
-  I --> J{"Role USER / STAFF / ORGANISATEUR"}
-  J -- USER --> K["Accueil, Recherche, Billets, Profil"]
-  J -- STAFF/ORGANISATEUR --> L["Accueil, Recherche, Scanner, Billets, Profil"]
-
-  K --> M["EventService / Firestore events, billets, reminders"]
-  L --> M
-  L --> N["StaffView -> ScannerView -> ScannerService"]
-  M --> O["EventDetailView"]
-  O --> P["Transactions reservation/desinscription"]
-  O --> Q["NotificationService scheduleNotification"]
-```
+| Plateforme | État dans le projet | Identifiant visible |
+|---|---|---|
+| Android | Configurée | `1:443286525719:android:2e47a17d1ecaf41d3c4952` |
+| iOS | Configurée | `1:443286525719:ios:536d9060940619a43c4952` |
+| macOS | Configurée | Même configuration que iOS |
+| Web | Configurée | `1:443286525719:web:c891e0d384fba88a3c4952` |
+| Windows | Configurée | `1:443286525719:web:52cf5cadeafe35943c4952` |
+| Linux | Non configurée dans FlutterFire | L'application affiche un mode hors-ligne si Firebase ne s'initialise pas. |
 
 ### Initialisation applicative
 
-`main.dart` execute les etapes suivantes:
+Le point d'entrée `lib/main.dart` suit le cycle suivant :
 
-1. `WidgetsFlutterBinding.ensureInitialized()`.
-2. `initializeDateFormatting('fr_FR', null)` pour permettre les formats de date francais.
-3. `NotificationService().initNotification()` puis `checkExactAlarmPermission()` pour Android.
-4. `Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)`.
-5. `runApp(MyApp(isFirebaseReady: firebaseInitialized))`.
+1. Initialisation Flutter avec `WidgetsFlutterBinding.ensureInitialized()`.
+2. Initialisation des formats de date français via `initializeDateFormatting('fr_FR', null)`.
+3. Initialisation Firebase avec `Firebase.initializeApp`.
+4. Initialisation des notifications locales via `NotificationService().initNotification`.
+5. Demande de permission Android pour les alarmes exactes via `checkExactAlarmPermission`.
+6. Lancement de `MyApp`.
 
-`MyApp` utilise `StreamBuilder<User?>` sur `FirebaseAuth.instance.authStateChanges()`:
+`MyApp` expose une `GlobalKey<NavigatorState>` utilisée par les notifications locales. Lorsqu'une notification contient un `payload` correspondant à un `eventId`, l'application navigue vers `EventDetailView(eventId: eventId)`.
 
-- etat `waiting`: spinner.
-- utilisateur connecte: `HomeView`.
-- aucun utilisateur: `LoginView`.
+### Architecture fonctionnelle
 
-## 2. Modele de Donnees & Base de donnees
+L'architecture est organisée en quatre couches applicatives principales :
 
-### Vue globale Firestore
-
-Les collections suivantes sont observees dans le code:
-
-| Collection | Usage principal | Documents |
+| Couche | Dossier | Responsabilité |
 |---|---|---|
-| `users` | Profils applicatifs associes aux comptes Firebase Auth. | Document id = `uid` Firebase Auth. |
-| `events` | Evenements et billetterie. | Document id auto-genere par `.add()` dans la creation actuelle. |
-| `billets` | Billets reserves par les utilisateurs, QR scannables. | Document id auto-genere; cet id est encode dans le QR code. |
-| `reminders` | Favoris/rappels d'ouverture de billetterie. | Document id = `${uid}_${eventId}` dans `EventDetailView`. |
-| `organizers` | Groupes organisateurs. | Document id = identifiant organisation. |
-| `demandes_organisation` | Demandes utilisateur pour rejoindre une organisation. | Document id = `uid` du demandeur. |
-| `tickets` | Ancien/flux alternatif de tickets utilise par `DatabaseService.validerBillet` et `seed_database.dart`. | Document id quelconque, recherche par `idToken`. |
+| Modèles | `lib/models/` | Conversion des documents Firestore en objets Dart et représentation des enums métier. |
+| Services | `lib/services/` | Authentification, lecture de rôles, événements, scanner, notifications et seed de données. |
+| Vues | `lib/views/` | Écrans complets : accueil, login, profil, recherche, billets, gestion d'événement, scanner. |
+| Widgets | `lib/widgets/` | Composants UI réutilisables : champs, barre de navigation, recherche, sections profil, listes. |
 
-Important: le flux metier principal actuel utilise `billets`, pas `tickets`. `tickets` apparait comme heritage ou prototype: son schema (`idUtilisateur`, `idEvenement`, `statut`, `idToken`) ne correspond pas au scanner actif, qui lit `billets/{billetId}` avec `userId`, `eventId` et `scanAt`.
+```mermaid
+flowchart TD
+  A["main.dart"] --> B["Firebase Core"]
+  A --> C["NotificationService"]
+  B --> D{"Firebase initialisé ?"}
+  D -- Non --> E["Mode hors-ligne"]
+  D -- Oui --> F["FirebaseAuth.authStateChanges"]
+  F -- Non connecté --> G["LoginView"]
+  F -- Connecté --> H["HomeView"]
 
-### Modele `EventModel` (`lib/models/event_model.dart`)
+  H --> I["UserService.getUserRole"]
+  I --> J{"USER / STAFF / ORGANISATEUR"}
+  J -- USER --> K["Accueil, Recherche, Billets, Profil"]
+  J -- STAFF/ORGANISATEUR --> L["Accueil, Recherche, Scanner, Billets, Profil"]
 
-| Champ Dart | Type Dart | Champ Firestore | Role |
-|---|---|---|---|
-| `id` | `String` | id document | Identifiant logique de l'evenement. Dans `CreateEventView`, une cle `event_${titre}_${date}` est construite mais n'est pas utilisee comme id Firestore car l'insertion fait `.add()`. |
-| `nom` | `String` | `nom` | Titre affiche dans accueil, recherche, tickets, staff, detail. |
-| `description` | `String` | `description` | Texte detaille de l'evenement. |
-| `lieu` | `String` | `lieu` | Lieu affiche dans listes et detail. |
-| `idOrganisateur` | `String` | `idOrganisateur` | Reference vers `organizers/{id}` et filtre des evenements accessibles au staff. |
-| `capaciteMax` | `int` | `capaciteMax` | Capacite initiale. |
-| `placesRestantes` | `int` | `placesRestantes` | Compteur transactionnel decremente/incremente lors des inscriptions/desinscriptions. |
-| `dateHeureEvent` | `DateTime` | `dateHeureEvent` | Date de debut, base du tri et des onglets a venir/en cours/passes. |
-| `dateFinEvent` | `DateTime` | `dateFinEvent` | Date de fin, utilisee pour les onglets et la disponibilite scanner. |
-| `dateOuvertureBilletterie` | `DateTime` | `dateOuvertureBilletterie` | Date d'ouverture du shotgun; bloque l'inscription avant ouverture. |
-| `dateFermetureBilletterie` | `DateTime` | `dateFermetureBilletterie` | Date de fermeture de billetterie dans le modele et la creation. |
-| `image` | `String` | `image` | Image d'evenement encodee en Base64. Fallback asset si vide ou invalide. |
+  K --> M["EventDetailView"]
+  L --> M
+  M --> N["Réservation / désinscription"]
+  M --> O["Favoris et notification locale"]
+  M --> P["ManageEventView si organisateur propriétaire"]
+  P --> Q["EditEventView"]
+  P --> R["ScannerView"]
+  R --> S["ScannerService"]
+```
 
-Point d'attention: `EventModel.fromFirestore` mappe actuellement `dateFermetureBilletterie` depuis `dateFinEvent` au lieu de `dateFermetureBilletterie`. Les vues lisent souvent les champs bruts Firestore, ce qui masque partiellement l'erreur, mais toute utilisation du modele peut propager une date de fermeture incorrecte.
+### Structure des écrans principaux
 
-### Modele utilisateur (`lib/models/utilisateur_model.dart`)
-
-Le fichier `utilisateur_model.dart` contient une classe nommee `EventModel`, ce qui est incoherent avec son contenu. Fonctionnellement, ce modele represente un utilisateur.
-
-| Champ Dart | Type Dart | Champ Firestore | Role |
-|---|---|---|---|
-| `idUtilisateur` | `String` | id document | Identifiant utilisateur, normalement `uid` Firebase Auth. |
-| `nom` | `String` | `nom` | Nom de famille. |
-| `prenom` | `String` | `prenom` | Prenom. |
-| `email` | `String` | `email` | Email du compte. |
-| `role` | `Role` | `role` | Role applicatif. Attention: l'enum Dart contient `etudiant/staff/organisateur/admin`, tandis que Firestore utilise `USER/STAFF/ORGANISATEUR`. |
-| `createdAt` | `DateTime` | `createdAt` | Date de creation du profil. |
-
-Schema reel `users/{uid}` observe:
-
-| Champ | Type Firestore attendu | Role |
-|---|---|---|
-| `uid` | `String` | Stocke explicitement l'uid lors de l'inscription. |
-| `prenom` | `String` | Prenom editable dans le profil. |
-| `nom` | `String` | Nom editable dans le profil. |
-| `email` | `String` | Email affiche, non editable dans `ProfileView`. |
-| `role` | `String` | `USER`, `STAFF` ou `ORGANISATEUR` dans les vues. |
-| `createdAt` | `Timestamp` | Timestamp serveur a l'inscription. |
-| `idOrganisateur` | `String` | Organisation rattachee pour `STAFF` et `ORGANISATEUR`; peut etre absent ou vide pour `USER`. |
-
-### Enum `Role` (`lib/models/role_model.dart`)
-
-| Valeur | Usage observe |
+| Écran | Rôle fonctionnel |
 |---|---|
-| `etudiant` | Valeur par defaut du modele utilisateur Dart, mais non alignee avec Firestore. |
-| `staff` | Valeur enum Dart non directement utilisee par les vues. |
-| `organisateur` | Valeur enum Dart non directement utilisee par les vues. |
-| `admin` | Declaree mais non observee dans les flux UI. |
-| `unknown` | Declaree mais non exploitee. |
+| `LoginView` | Connexion email/mot de passe, accès à l'inscription, reset password et documents légaux. |
+| `RegisterPage` | Création de compte Firebase Auth et profil Firestore associé. |
+| `HomeView` | Shell principal avec navigation basse dynamique selon le rôle. |
+| `SearchView` | Recherche et classement des événements en trois onglets : à venir, en cours, passés. |
+| `EventDetailView` | Détail événement, inscription, désinscription, favoris, rappel et accès au dashboard organisateur. |
+| `FavoritesView` | Liste des événements placés en favori. |
+| `MyTicketsView` | Billets utilisateur et, pour les organisateurs, liste des événements gérés. |
+| `TicketDetailView` | Affichage du billet et du QR Code. |
+| `StaffView` | Liste des événements scannables pour une organisation. |
+| `ScannerView` | Scan QR Code et retour d'état d'accès. |
+| `ManageEventView` | Tableau de bord d'un événement : statistiques, scanner, modification, annulation. |
+| `CreateEventView` | Création d'un événement par un organisateur rattaché à une organisation. |
+| `EditEventView` | Modification des informations d'un événement existant. |
+| `ProfileView` | Profil utilisateur, sécurité, organisation, demandes d'accès et gestion des membres. |
 
-Les vues testent des chaines majuscules: `USER`, `STAFF`, `ORGANISATEUR`.
+## 2. Modèle de données & base de données
 
-### Modele `GroupeOrganisateur` (`lib/models/groupe_organisateur_model.dart`)
+### Collections applicatives
 
-| Champ Dart | Type Dart | Champ Firestore | Role |
-|---|---|---|---|
-| `idOrganisation` | `String` | id document | Identifiant de l'organisation. |
-| `nom` | `String` | `nom` | Nom affiche dans les details d'evenement, profils et demandes. |
-| `urlLogo` | `String` | `urlLogo` | URL/logo declare; peu exploite dans les vues actuelles. |
-
-Collection: `organizers/{orgaId}`.
-
-### Modele `DemandeOrgaModel` (`lib/models/demande_orga_model.dart`)
-
-| Champ Dart | Type Dart | Champ Firestore | Role |
-|---|---|---|---|
-| `userId` | `String` | id document ou `userId` | Le factory prend `doc.id`; les documents sont crees avec l'id utilisateur. |
-| `userNom` | `String` | `userNom` | Nom complet affiche aux organisateurs. |
-| `orgaId` | `String` | `orgaId` | Organisation cible. |
-| `orgaNom` | `String` | `orgaNom` | Nom de l'organisation au moment de la demande. |
-| `roleDemande` | `String` | `roleDemande` | Role demande: `STAFF` ou `ORGANISATEUR`. |
-| `status` | `String` | `status` | `EN_ATTENTE` ou `REFUSE`; l'acceptation supprime le document. |
-
-Champ supplementaire cree mais non present dans le modele: `createdAt` (`FieldValue.serverTimestamp()`).
-
-### Modele `BilletInscriptionModel` (`lib/models/billet_inscription_model.dart`)
-
-Ce modele correspond au vocabulaire `idUtilisateur/idEvenement/statutBillet`, mais le flux actif `billets` utilise plutot `userId/eventId/scanAt`.
-
-| Champ Dart | Type Dart | Champ Firestore | Role |
-|---|---|---|---|
-| `idUtilisateur` | `String` | `idUtilisateur` | Identifiant utilisateur, ancien schema. |
-| `idEvenement` | `String` | `idEvenement` | Identifiant evenement, ancien schema. |
-| `timestampInscription` | `DateTime` | `timestampInscription` | Date d'inscription. |
-| `statutBillet` | `StatutBillet` | `statutBillet` | `VALIDE`, `SCANNE`, `ANNULE`. |
-
-### Enum `StatutBillet` (`lib/models/statut_billet_model.dart`)
-
-| Valeur | Role |
-|---|---|
-| `VALIDE` | Billet actif. |
-| `SCANNE` | Billet deja valide au controle. |
-| `ANNULE` | Billet annule ou statut inconnu dans le fallback du modele. |
-
-### Schema reel `billets`
-
-Les documents sont crees par transaction dans `EventDetailView._reserverPlace`.
-
-| Champ | Type Firestore attendu | Role |
+| Collection | Description | Usage applicatif |
 |---|---|---|
-| `userId` | `String` | `uid` du detenteur du billet. |
-| `eventId` | `String` | Id document de l'evenement. |
-| `createdAt` | `Timestamp` | Date serveur de reservation. |
-| `scanAt` | `Timestamp|null` | Null tant que le billet n'a pas ete scanne; timestamp serveur apres scan. |
-| `scannedBy` | `String` | Renseigne par `ScannerService`; actuellement egal au `userId` du billet, alors que le nom suggere l'id du staff scanneur. |
+| `users` | Profils utilisateurs liés aux comptes Firebase Auth. | Rôles, identité, email, rattachement organisation. |
+| `events` | Catalogue des événements. | Accueil, recherche, détail, création, édition, dashboard organisateur. |
+| `organizers` | Organisations créatrices d'événements. | Affichage du nom d'organisation et rattachement des membres. |
+| `billets` | Billets réservés dans le flux applicatif actuel. | QR Code, liste des billets, scan, statistiques de vente. |
+| `reminders` | Favoris et rappels d'ouverture de billetterie. | Favoris, icône d'intérêt, notification locale. |
+| `demandes_organisation` | Demandes d'accès à une organisation depuis le profil. | Suivi de demande, validation/refus par un organisateur. |
+| `tickets` | Collection présente dans le service historique `DatabaseService` et dans les règles fournies. | Validation par token dans le service historique. |
+| `demandes_orga` | Collection couverte par les règles Firestore fournies. | Demandes organisation selon la politique Firestore communiquée. |
 
-Le QR code encode uniquement l'id du document `billets`. Le scanner lit donc `billets/{ticketId}`.
+### Modèle `EventModel`
 
-### Schema reel `reminders`
+Fichier : `lib/models/event_model.dart`
 
-| Champ | Type Firestore attendu | Role |
+| Champ | Type Dart | Type Firestore | Rôle |
+|---|---|---|---|
+| `id` | `String` | ID document | Identifiant de l'événement. |
+| `nom` | `String` | `String` | Titre affiché dans les listes, détails et billets. |
+| `description` | `String` | `String` | Description complète. |
+| `lieu` | `String` | `String` | Localisation de l'événement. |
+| `idOrganisateur` | `String` | `String` | Référence logique vers `organizers/{orgaId}`. |
+| `capaciteMax` | `int` | `number` | Capacité totale. |
+| `placesRestantes` | `int` | `number` | Places encore disponibles. |
+| `dateHeureEvent` | `DateTime` | `Timestamp` | Date et heure de début. |
+| `dateFinEvent` | `DateTime` | `Timestamp` | Date et heure de fin. |
+| `dateOuvertureBilletterie` | `DateTime` | `Timestamp` | Ouverture du shotgun. |
+| `dateFermetureBilletterie` | `DateTime` | `Timestamp` | Fermeture du shotgun. |
+| `image` | `String` | `String` Base64 | Affiche de l'événement. |
+
+### Modèle utilisateur
+
+Le profil utilisateur est stocké dans `users/{uid}`.
+
+| Champ | Type Firestore | Rôle |
 |---|---|---|
-| `userId` | `String` | Proprietaire du favori/rappel. |
-| `eventId` | `String` | Evenement suivi. |
-| `createdAt` | `Timestamp` | Date serveur d'ajout. |
-| `notified` | `bool` | Declare a `false`, non mis a jour dans le code actuel. |
+| `uid` | `String` | Identifiant Firebase Auth de l'utilisateur. |
+| `prenom` | `String` | Prénom affiché dans le profil, le scan et la gestion des membres. |
+| `nom` | `String` | Nom affiché avec le prénom. |
+| `email` | `String` | Adresse email du compte. |
+| `role` | `String` | Rôle applicatif : `USER`, `STAFF`, `ORGANISATEUR`, `ADMIN` côté règles. |
+| `createdAt` | `Timestamp` | Date de création du profil. |
+| `idOrganisateur` | `String` | Organisation rattachée pour les profils staff/organisateur. |
 
-Document id: `${uid}_${eventId}` dans `EventDetailView`.
+### Modèle `GroupeOrganisateur`
 
-### Schema heredite `tickets`
+Fichier : `lib/models/groupe_organisateur_model.dart`
 
-Utilise par `DatabaseService.validerBillet` et `seed_database.dart`, pas par `ScannerView`.
+| Champ | Type Dart | Type Firestore | Rôle |
+|---|---|---|---|
+| `idOrganisation` | `String` | ID document | Identifiant de l'organisation. |
+| `nom` | `String` | `String` | Nom affiché dans les événements et le profil. |
+| `urlLogo` | `String` | `String` | URL ou chemin du logo de l'organisation. |
 
-| Champ | Type Firestore attendu | Role |
+### Modèle `DemandeOrgaModel`
+
+Fichier : `lib/models/demande_orga_model.dart`
+
+| Champ | Type Dart | Type Firestore | Rôle |
+|---|---|---|---|
+| `userId` | `String` | ID document / `String` | Utilisateur demandeur. |
+| `userNom` | `String` | `String` | Nom complet du demandeur. |
+| `orgaId` | `String` | `String` | Organisation ciblée. |
+| `orgaNom` | `String` | `String` | Nom de l'organisation. |
+| `roleDemande` | `String` | `String` | Rôle demandé : `STAFF` ou `ORGANISATEUR`. |
+| `status` | `String` | `String` | État de la demande : `EN_ATTENTE` ou `REFUSE`. |
+
+### Modèle billet applicatif `billets`
+
+Les billets utilisés par les écrans principaux sont créés dans `EventDetailView` lors de l'inscription.
+
+| Champ | Type Firestore | Rôle |
 |---|---|---|
-| `idUtilisateur` | `String` | Ancien identifiant utilisateur. |
-| `idEvenement` | `String` | Ancien identifiant evenement. |
-| `statut` | `String` | `VALIDE` ou `SCANNE`. |
+| `userId` | `String` | Utilisateur propriétaire du billet. |
+| `eventId` | `String` | Événement associé. |
+| `createdAt` | `Timestamp` | Date de réservation. |
+| `scanAt` | `Timestamp` ou `null` | Date de scan si le billet a déjà été validé. |
+| `scannedBy` | `String` | Champ ajouté lors du scan. |
+
+L'identifiant du document `billets/{billetId}` est encodé dans le QR Code présenté dans `TicketDetailView`.
+
+### Modèle ticket historique `tickets`
+
+La collection `tickets` est manipulée par `DatabaseService.validerBillet` et couverte par les règles Firestore fournies.
+
+| Champ | Type Firestore | Rôle |
+|---|---|---|
+| `idUtilisateur` | `String` | Utilisateur propriétaire. |
+| `idEvenement` | `String` | Événement associé. |
+| `statut` | `String` | État du ticket : `VALIDE` ou `SCANNE`. |
 | `timestampInscription` | `Timestamp` | Date d'inscription. |
-| `idToken` | `String` | Token scanne par l'ancien validateur. |
+| `idToken` | `String` | Token utilisé par le validateur historique. |
 
-## 3. Gestion des Etats & Flux de Navigation
+### Modèle `reminders`
 
-### Gestion d'etat
-
-L'etat local est gere principalement par `StatefulWidget` et `setState`.
-
-| Ecran / composant | Etat local | Flux temps reel |
+| Champ | Type Firestore | Rôle |
 |---|---|---|
-| `LoginView` | Controleurs email/mot de passe, loading, mot de passe masque. | Aucun; connexion via `AuthService`. |
-| `RegisterPage` | Controleurs formulaire, validation politique, loading, masquage mots de passe. | Creation `users/{uid}` apres Firebase Auth. |
-| `HomeView` | Index de navigation. | `UserService.getUserRole`, `EventService.getMyRegisteredEventIds`, `getAllEvents`, reminders. |
-| `EventDetailView` | Processing, role utilisateur, id organisation, loading utilisateur. | Ecoute `events/{eventId}`, requete `billets`, document `reminders/{uid_eventId}`. |
-| `SearchView` | Query texte, `TabController`. | Ecoute `events`. |
-| `MyTicketsView` | `TabController`, bascule Mes Billets/Mes Events, role et organisation. | Ecoute `billets` utilisateur ou `events` organisation. |
-| `StaffView` | Aucun etat local direct. | Ecoute `users/{uid}` puis `events` de l'organisation. |
-| `ScannerView` | Etat delegue a `ScannerService`. | Lectures ponctuelles `billets/{id}` et `users/{uid}`. |
-| `ProfileView` | Controleurs profil/securite, toggles, demandes organisation, recognizers. | Ecoute `users/{uid}`, `demandes_organisation/{uid}`, `organizers`, `users` staff. |
-| `FavoritesView` | Stateless. | Ecoute `reminders` utilisateur puis charge chaque `events/{eventId}`. |
+| `userId` | `String` | Propriétaire du rappel. |
+| `eventId` | `String` | Événement suivi. |
+| `createdAt` | `Timestamp` | Date d'ajout. |
+| `notified` | `bool` | État logique du rappel. |
+
+Le document est créé avec l'identifiant `${uid}_${eventId}`.
+
+### Enums métier
+
+| Enum | Valeurs | Usage |
+|---|---|---|
+| `StatutBillet` | `VALIDE`, `SCANNE`, `ANNULE` | Représentation typée d'un statut billet. |
+| `Role` | `etudiant`, `staff`, `organisateur`, `admin`, `unknown` | Représentation Dart des rôles. Les vues utilisent les valeurs Firestore en majuscules. |
+
+## 3. Gestion des états & flux de navigation
+
+### Gestion des états
+
+L'application utilise principalement des `StatefulWidget`, des contrôleurs Flutter et des `StreamBuilder` Firestore.
+
+| Zone | Gestion d'état |
+|---|---|
+| Authentification globale | `StreamBuilder<User?>` sur `FirebaseAuth.instance.authStateChanges()`. |
+| Navigation principale | `HomeView` maintient `_currentIndex` et reconstruit les onglets selon le rôle. |
+| Formulaires | `TextEditingController`, validations locales, indicateurs `_isLoading`. |
+| Données temps réel | `StreamBuilder` sur `users`, `events`, `billets`, `reminders`, `organizers`, `demandes_organisation`. |
+| Scanner | `ScannerService extends ChangeNotifier`, écouté par `ScannerView`. |
+| Onglets | `TabController` dans `SearchView` et `MyTicketsView`. |
+| Notifications | Callback de notification vers le `NavigatorState` global. |
+
+### Flux d'authentification
+
+```mermaid
+flowchart LR
+  A["LoginView"] -->|Créer mon compte| B["RegisterPage"]
+  B -->|Création Firebase Auth| C["users/{uid}"]
+  B -->|Déconnexion automatique| D["LoginView avec email prérempli"]
+  A -->|Connexion réussie| E["HomeView"]
+  A -->|Mot de passe oublié| F["ForgotPasswordView"]
+  F -->|Email de reset envoyé| A
+```
+
+Lors de l'inscription, l'application crée un compte Firebase Auth, puis crée le document `users/{uid}` avec le rôle `USER`. Après inscription, l'utilisateur est déconnecté et renvoyé vers l'écran de connexion avec son email prérempli.
 
 ### Flux de navigation principal
 
 ```mermaid
-flowchart LR
-  Login["LoginView"] -->|Creer mon compte| Register["RegisterPage"]
-  Register -->|Compte cree puis signOut| LoginPrefill["LoginView avec email pre-rempli"]
-  Login -->|Mot de passe oublie| Forgot["ForgotPasswordView"]
-  Forgot -->|Email reset envoye| Login
-  Login -->|Connexion OK| Home["HomeView"]
-  Home --> Search["SearchView"]
-  Home --> Tickets["MyTicketsView"]
-  Home --> Profile["ProfileView"]
-  Home -->|Role STAFF/ORGANISATEUR| Staff["StaffView"]
-  Home --> Favorites["FavoritesView"]
-  Search --> Detail["EventDetailView"]
-  Home --> Detail
-  Favorites --> Detail
-  Tickets --> TicketDetail["TicketDetailView"]
-  TicketDetail --> Detail
-  Staff --> Scanner["ScannerView"]
-  Tickets -->|Mes Events + FAB| Create["CreateEventView"]
-  Profile -->|Deconnexion / suppression| Login
+flowchart TD
+  H["HomeView"] --> A["Accueil"]
+  H --> S["SearchView"]
+  H --> B["MyTicketsView"]
+  H --> P["ProfileView"]
+  H -->|STAFF / ORGANISATEUR| ST["StaffView"]
+
+  A --> D["EventDetailView"]
+  S --> D
+  B --> T["TicketDetailView"]
+  T --> D
+  B -->|ORGANISATEUR, Mes Events| D
+  D -->|Organisateur propriétaire| M["ManageEventView"]
+  M --> SC["ScannerView"]
+  M --> E["EditEventView"]
+  B -->|Bouton +| C["CreateEventView"]
+  A --> F["FavoritesView"]
+  F --> D
 ```
 
-### Navigation et droits
+### Rôles applicatifs
 
-`HomeView` reconstruit dynamiquement la barre de navigation en fonction du role Firestore:
+| Rôle | Accès fonctionnels observés |
+|---|---|
+| `USER` | Consultation du catalogue, recherche, inscription, désinscription, favoris, billets, profil. |
+| `STAFF` | Accès à la vue scanner via la navigation principale, selon rattachement organisation. |
+| `ORGANISATEUR` | Gestion des événements de son organisation, création, modification, annulation, scan, gestion des demandes et membres. |
+| `ADMIN` | Rôle prévu dans les règles Firestore pour l'administration des événements, organisations et demandes. |
 
-- `USER`: Accueil, Recherche, Billets, Profil.
-- `STAFF` ou `ORGANISATEUR`: Accueil, Recherche, Scanner, Billets, Profil.
+### Flux réservation
 
-La logique repose sur `UserService.getUserRole(uid)` qui ecoute `users/{uid}` et retourne `USER` par defaut si le document n'existe pas.
-
-`StaffView` filtre ensuite les evenements par `idOrganisateur` du profil utilisateur. Un utilisateur sans organisation obtient un message d'erreur fonctionnel ("Tu n'es rattache a aucune organisation"). Les evenements ne deviennent scannables qu'a partir de 30 minutes avant `dateHeureEvent`, via `AbsorbPointer` et opacite.
-
-`MyTicketsView` affiche une bascule supplementaire "Mes Billets / Mes Events" pour `STAFF` et `ORGANISATEUR`; le bouton flottant de creation apparait uniquement si l'utilisateur privilegie consulte "Mes Events".
-
-### Flux reservation/desinscription
-
-`EventDetailView._reserverPlace` utilise une transaction Firestore:
+Dans `EventDetailView`, la réservation s'effectue via une transaction Firestore :
 
 1. Lecture de `events/{eventId}`.
-2. Verification existence evenement.
-3. Verification ouverture billetterie (`dateOuvertureBilletterie <= maintenant`).
-4. Recherche hors transaction stricte d'un billet existant sur `billets` avec `userId` et `eventId`.
-5. Verification evenement non passe.
-6. Verification `placesRestantes > 0`.
-7. Decrementation de `placesRestantes`.
-8. Creation d'un document `billets` avec `userId`, `eventId`, `createdAt`, `scanAt: null`.
+2. Vérification de l'existence de l'événement.
+3. Vérification de l'ouverture de la billetterie.
+4. Vérification de l'absence de billet existant pour le couple utilisateur/événement.
+5. Vérification des places restantes.
+6. Décrémentation de `placesRestantes`.
+7. Création d'un document dans `billets`.
 
-`EventDetailView._seDesinscrire` utilise aussi une transaction:
+La désinscription utilise aussi une transaction :
 
-1. Recherche du billet de l'utilisateur pour l'evenement.
-2. Lecture de `events/{eventId}`.
-3. Suppression du billet.
-4. Incrementation de `placesRestantes`.
+1. Recherche du billet utilisateur pour l'événement.
+2. Suppression du document billet.
+3. Incrémentation de `placesRestantes`.
 
-Recommandation technique: l'unicite `(userId, eventId)` est appliquee cote client par requete. Pour eviter les doubles reservations concurrentes, utiliser un id de billet deterministe `${uid}_${eventId}` ou une collection de reservations par evenement permettrait une regle Firestore et une transaction plus robuste.
+### Flux favoris et notifications
 
-### Flux QR code et scan
+Lorsqu'un utilisateur ajoute un événement en favori :
 
-`TicketDetailView` genere un QR code avec `QrImageView(data: billetId)`. `ScannerView` lit le code via `mobile_scanner` et appelle `ScannerService.processQRScan(code)`.
+1. Un document `reminders/{uid_eventId}` est créé.
+2. Si la date d'ouverture de billetterie est future, une notification locale est planifiée.
+3. Le `payload` de notification contient l'identifiant de l'événement.
+4. Au clic sur la notification, `main.dart` navigue vers `EventDetailView(eventId: eventId)`.
 
-`ScannerService`:
+### Flux scan QR Code
 
-1. Ignore un scan si un traitement est en cours ou si un resultat est deja affiche.
-2. Charge `billets/{ticketId}`.
-3. Si absent: etat `invalid`.
-4. Lit `eventId`, `userId`, `scanAt`.
-5. Charge `users/{userId}` pour afficher le nom et prenom.
-6. Si le billet ne correspond pas a l'evenement scanne: etat `wrongEvent`.
-7. Si `scanAt` existe: etat `alreadyScanned` et formatage de la date.
-8. Sinon, met a jour le billet avec `scanAt: FieldValue.serverTimestamp()` et `scannedBy`.
-9. Affiche `success`, puis reset automatique apres 5 secondes.
+```mermaid
+flowchart TD
+  A["TicketDetailView"] --> B["QR Code = billetId"]
+  B --> C["ScannerView"]
+  C --> D["ScannerService.processQRScan"]
+  D --> E{"billets/{billetId} existe ?"}
+  E -- Non --> F["Billet invalide"]
+  E -- Oui --> G{"eventId correspond ?"}
+  G -- Non --> H["Billet pour un autre événement"]
+  G -- Oui --> I{"scanAt existe ?"}
+  I -- Oui --> J["Déjà scanné"]
+  I -- Non --> K["Mise à jour scanAt"]
+  K --> L["Accès autorisé"]
+```
 
-### TapGestureRecognizer et textes riches
+`ScannerService` affiche automatiquement le résultat du scan et réinitialise l'état après cinq secondes.
 
-Deux implementations existent:
+### Gestion événement organisateur
 
-- `PrivacyCheckbox` utilise un `GestureDetector` autour d'un `Text.rich`; le tap ouvre une `AlertDialog` qui charge `assets/markdown/privacy_politique.md` via `rootBundle.loadString` et rend le Markdown.
-- `ProfileView` instancie deux `TapGestureRecognizer` dans `initState`, les rattache a deux `TextSpan` dans le footer, puis les dispose dans `dispose`.
+`ManageEventView` centralise les actions de pilotage d'un événement :
 
-Le pattern `TapGestureRecognizer` est correctement cycle de vie dans `ProfileView`: creation dans `initState`, affectation de `onTap`, destruction explicite. Actuellement, les callbacks affichent seulement des SnackBars; ils ne naviguent pas vers `PrivacyPolicyView`.
-
-## 4. Authentification & Securite (Focus Firebase)
-
-### Mecanismes d'authentification
-
-Le service central `AuthService` couvre trois operations:
-
-| Methode | Firebase Auth | Role |
-|---|---|---|
-| `signInWithEmailAndPassword(email, password)` | `FirebaseAuth.signInWithEmailAndPassword` | Connexion email/mot de passe avec trimming et mapping des erreurs Firebase. |
-| `createUserWithEmailAndPassword(email, password)` | `FirebaseAuth.createUserWithEmailAndPassword` | Creation de compte Auth. Le profil Firestore est cree ensuite dans `RegisterPage`. |
-| `resetPassword(email)` | `FirebaseAuth.sendPasswordResetEmail` | Envoi d'un email de recuperation. |
-
-Aucun fournisseur externe n'est implemente dans les ecrans de login/register, mais `ProfileView` detecte les providers via `user.providerData` et n'affiche la section mot de passe que si un provider `password` est present. Le message "Connecte via un fournisseur externe" prevoit donc un cas futur ou existant cote Firebase Auth.
-
-### Inscription et profil applicatif
-
-`RegisterPage._signUp`:
-
-1. Valide prenom, nom, email, mot de passe fort, confirmation et acceptation de la politique.
-2. Cree le compte Firebase Auth.
-3. Cree `users/{uid}` avec `uid`, `prenom`, `nom`, `email`, `role: USER`, `createdAt`.
-4. Deconnecte immediatement l'utilisateur.
-5. Redirige vers `LoginView(prefilledEmail: email)`.
-
-### Reauthentification Firebase
-
-Les operations sensibles utilisent `EmailAuthProvider.credential`:
-
-- `ProfileView._updatePassword`.
-- `PasswordSection._updatePassword`.
-- `ProfileView._deleteAccount`.
-
-Flux changement de mot de passe:
-
-1. Recuperation de `FirebaseAuth.instance.currentUser`.
-2. Verification des champs ancien/nouveau/confirmation.
-3. Verification `newPassword == confirmPassword`.
-4. Creation du credential: `EmailAuthProvider.credential(email: user.email!, password: oldPassword)`.
-5. `user.reauthenticateWithCredential(credential)`.
-6. `user.updatePassword(newPassword)`.
-7. Nettoyage des controleurs et SnackBar de succes.
-
-Flux suppression de compte:
-
-1. Saisie du mot de passe dans une `AlertDialog`.
-2. Reauthentification avec l'email courant.
-3. Suppression de `users/{uid}`.
-4. Suppression de `demandes_organisation/{uid}`.
-5. Suppression du compte Firebase Auth avec `user.delete()`.
-6. Retour a `LoginView`.
-
-Point d'attention: la suppression ne supprime pas les `billets`, `reminders`, evenements crees, ni ne nettoie les references staff/organisateur. Cette responsabilite doit etre clarifiee dans les regles ou via Cloud Functions.
-
-### Roles et permissions applicatives
-
-Les roles reels sont des chaines Firestore:
-
-| Role | Capacites UI observees |
+| Fonction | Description |
 |---|---|
-| `USER` | Accueil, recherche, reservation/desinscription, favoris, consultation billets, profil, demande d'organisation. |
-| `STAFF` | Capacites USER + onglet scanner + consultation des evenements de son organisation + creation d'evenements via "Mes Events". |
-| `ORGANISATEUR` | Capacites STAFF + acceptation/refus des demandes d'acces + gestion des membres staff + retrait staff. |
+| Statistiques de vente | Calcule les billets réservés, le taux de remplissage et les entrées scannées. |
+| Scanner les billets | Ouvre `ScannerView` avec l'événement courant. |
+| Modifier les informations | Ouvre `EditEventView`. |
+| Annuler définitivement | Supprime l'événement et les billets associés. |
 
-Impact UI:
+`EditEventView` permet de modifier le titre, la description, les dates, le lieu, le nombre de places et l'affiche. La capacité mise à jour recalcule les places restantes en conservant le nombre de places déjà vendues.
 
-- `HomeView`: affiche l'entree Scanner uniquement pour `STAFF` ou `ORGANISATEUR`.
-- `ProfileView`: affiche `ExpansionTile` "Votre Organisation" si role privilegie et `idOrganisateur` non vide; affiche les demandes d'acces recues et la gestion staff seulement pour `ORGANISATEUR`.
-- `MyTicketsView`: affiche "Mes Events" et le FAB de creation pour `STAFF` ou `ORGANISATEUR`.
-- `EventDetailView`: si l'utilisateur est `ORGANISATEUR` et que son `idOrganisateur` correspond a l'evenement, le bouton devient "GERER MON EVENEMENT".
+### Documents légaux et textes riches
 
-### Recommandations Firestore Rules
+Les mentions légales et la politique de confidentialité sont stockées dans :
 
-Les regles doivent imposer cote serveur ce que l'UI suppose cote client. Proposition adaptee au code actuel:
+| Asset | Usage |
+|---|---|
+| `assets/markdown/mentions_legales.md` | Affichage depuis login, inscription et profil. |
+| `assets/markdown/privacy_politique.md` | Affichage depuis login, inscription et profil. |
+
+Les liens textuels sont rendus avec `Text.rich`, `TextSpan` et `TapGestureRecognizer`. Le contenu Markdown est chargé via `rootBundle.loadString` puis affiché dans une `AlertDialog` avec `MarkdownBody`.
+
+## 4. Authentification & sécurité Firebase
+
+### Authentification
+
+Le service `AuthService` encapsule les opérations Firebase Auth suivantes :
+
+| Méthode | API Firebase | Fonction |
+|---|---|---|
+| `signInWithEmailAndPassword` | `FirebaseAuth.signInWithEmailAndPassword` | Connexion utilisateur. |
+| `createUserWithEmailAndPassword` | `FirebaseAuth.createUserWithEmailAndPassword` | Création d'un compte. |
+| `resetPassword` | `FirebaseAuth.sendPasswordResetEmail` | Envoi d'un email de réinitialisation. |
+
+### Réauthentification
+
+Les opérations sensibles utilisent `EmailAuthProvider.credential` puis `reauthenticateWithCredential` :
+
+| Action | Écran | Séquence |
+|---|---|---|
+| Modification du mot de passe | `ProfileView`, `PasswordSection` | Ancien mot de passe, réauthentification, `updatePassword`. |
+| Suppression de compte | `ProfileView` | Saisie du mot de passe, réauthentification, suppression Firestore puis `user.delete()`. |
+
+### Règles Firestore communiquées
+
+Les règles Firestore fournies pour l'environnement Buckshot sont les suivantes :
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
+
+    // ---------- Fonctions utilitaires ----------
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    function userDoc(uid) {
-      return get(/databases/$(database)/documents/users/$(uid));
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function role() {
-      return signedIn() && userDoc(request.auth.uid).exists()
-        ? userDoc(request.auth.uid).data.role
-        : 'USER';
+    function hasRole(role) {
+      return isSignedIn() && userData().role == role;
     }
 
-    function orgId() {
-      return signedIn() && userDoc(request.auth.uid).exists()
-        ? userDoc(request.auth.uid).data.idOrganisateur
-        : '';
+    function isStaffOrAbove() {
+      return hasRole('STAFF') || hasRole('ORGANISATEUR') || hasRole('ADMIN');
     }
 
-    function isStaffOrOrganizer() {
-      return role() in ['STAFF', 'ORGANISATEUR'];
+    // ---------- USERS ----------
+    match /users/{userId} {
+      // Lecture : soi-même, ou staff/orga (besoin de voir les noms au scan)
+      allow read: if isSignedIn() && (request.auth.uid == userId || isStaffOrAbove());
+
+      // Création : seulement son propre doc, et SANS pouvoir se définir un rôle privilégié
+      allow create: if isSignedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.role == 'USER';
+
+      // MAJ de son profil, mais interdiction de changer son propre rôle
+      allow update: if isSignedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
     }
 
-    function isOrganizer() {
-      return role() == 'ORGANISATEUR';
-    }
-
-    match /users/{uid} {
-      allow read: if signedIn();
-      allow create: if signedIn()
-        && uid == request.auth.uid
-        && request.resource.data.role == 'USER';
-      allow update: if signedIn() && (
-        uid == request.auth.uid
-        || isOrganizer()
-      );
-      allow delete: if signedIn() && uid == request.auth.uid;
-    }
-
-    match /organizers/{orgaId} {
-      allow read: if signedIn();
-      allow create, update, delete: if false;
-    }
-
+    // ---------- EVENTS ----------
     match /events/{eventId} {
-      allow read: if signedIn();
-      allow create: if signedIn()
-        && isStaffOrOrganizer()
-        && request.resource.data.idOrganisateur == orgId();
-      allow update: if signedIn() && (
-        isStaffOrOrganizer() && resource.data.idOrganisateur == orgId()
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['placesRestantes'])
-      );
-      allow delete: if signedIn()
-        && isOrganizer()
-        && resource.data.idOrganisateur == orgId();
+      allow read: if true; // catalogue public, OK
+      allow create, update, delete: if hasRole('ORGANISATEUR') || hasRole('ADMIN');
     }
 
-    match /billets/{billetId} {
-      allow read: if signedIn() && (
-        resource.data.userId == request.auth.uid
-        || isStaffOrOrganizer()
-      );
-      allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.scanAt == null;
-      allow update: if signedIn()
-        && isStaffOrOrganizer()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanAt', 'scannedBy']);
-      allow delete: if signedIn() && (
-        resource.data.userId == request.auth.uid
-        || isOrganizer()
-      );
+    // ---------- ORGANIZERS ----------
+    match /organizers/{orgaId} {
+      allow read: if true;
+      allow write: if hasRole('ADMIN');
     }
 
-    match /reminders/{reminderId} {
-      allow read, create, delete: if signedIn()
-        && (
-          resource.data.userId == request.auth.uid
-          || request.resource.data.userId == request.auth.uid
-        );
-      allow update: if false;
-    }
-
-    match /demandes_organisation/{uid} {
-      allow read: if signedIn() && (
-        uid == request.auth.uid
-        || isOrganizer()
-      );
-      allow create, update, delete: if signedIn() && (
-        uid == request.auth.uid
-        || isOrganizer()
-      );
-    }
-
+    // ---------- TICKETS / BILLETS ----------
     match /tickets/{ticketId} {
+      // L'utilisateur lit ses propres billets ; le staff lit tout (scan)
+      allow read: if isSignedIn()
+                  && (resource.data.idUtilisateur == request.auth.uid || isStaffOrAbove());
+
+      // Création d'une inscription : pour soi, statut imposé à VALIDE
+      allow create: if isSignedIn()
+                    && request.resource.data.idUtilisateur == request.auth.uid
+                    && request.resource.data.statut == 'VALIDE';
+
+      // Mise à jour réservée au staff (passage en SCANNE)
+      allow update: if isStaffOrAbove();
+
+      allow delete: if false;
+    }
+
+    // ---------- DEMANDES ORGA ----------
+    match /demandes_orga/{demandeId} {
+      allow read: if isStaffOrAbove() || resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'EN_ATTENTE';
+      allow update, delete: if hasRole('ADMIN');
+    }
+
+    // ---------- Tout le reste : fermé ----------
+    match /{document=**} {
       allow read, write: if false;
     }
   }
 }
 ```
 
-Cette proposition doit etre ajustee si `STAFF` doit creer des evenements ou seulement scanner. Le code actuel permet l'acces a `CreateEventView` pour `STAFF` et `ORGANISATEUR`.
+### Portée fonctionnelle des règles
 
-### Index Firestore a prevoir
-
-Les requetes composees suivantes peuvent necessiter des index:
-
-| Collection | Filtres | Utilisation |
+| Collection | Lecture | Écriture |
 |---|---|---|
-| `billets` | `where userId == uid`, `where eventId == eventId` | Detection inscription existante et etat bouton dans `EventDetailView`. |
-| `users` | `where idOrganisateur == currentOrg`, `where role == STAFF` | Liste des staffs dans `ProfileView`. |
-| `events` | `where idOrganisateur == orgId` | StaffView et Mes Events. |
-| `reminders` | `where userId == uid` | Accueil et favoris. |
-| `demandes_organisation` | `where orgaId == currentOrg` | Demandes recues. |
+| `users` | Utilisateur lui-même, staff, organisateur, admin | Création par soi-même avec rôle `USER`; mise à jour de son profil sans changement de rôle. |
+| `events` | Publique | `ORGANISATEUR` ou `ADMIN`. |
+| `organizers` | Publique | `ADMIN`. |
+| `tickets` | Propriétaire ou staff et au-dessus | Création par le propriétaire avec statut `VALIDE`; mise à jour par staff et au-dessus. |
+| `demandes_orga` | Staff et au-dessus ou demandeur | Création par le demandeur avec statut `EN_ATTENTE`; update/delete par admin. |
+| Autres chemins | Fermé | Fermé. |
 
-## 5. Guide de Contribution & Bonnes Pratiques
+### Permissions Android
 
-### Conventions observees
+Le manifeste Android déclare les permissions suivantes :
 
-| Sujet | Convention observee |
+| Permission | Usage |
 |---|---|
-| Nommage fichiers | Snake case: `event_detail_view.dart`, `auth_service.dart`, `groupe_organisateur_model.dart`. |
-| Nommage vues | Suffixe `View` pour la plupart des ecrans; exception `RegisterPage`. |
-| Nommage services | Suffixe `Service`. |
-| Widgets partages | Dossier `lib/widgets`, composants en PascalCase. |
-| Modeles | Suffixe `Model` sauf `GroupeOrganisateur`. |
-| Theme | Centralise dans `BuckshotTheme.darkTheme`; usages directs de couleurs encore presents dans les vues. |
-| Navigation | `Navigator` imperatif avec `MaterialPageRoute` ou `PageRouteBuilder`. |
-| Firestore | Acces directs depuis les vues et services, documents convertis manuellement en `Map<String, dynamic>`. |
+| `INTERNET` | Accès Firebase et services réseau. |
+| `ACCESS_NETWORK_STATE` | État réseau. |
+| `POST_NOTIFICATIONS` | Notifications Android récentes. |
+| `SCHEDULE_EXACT_ALARM` | Planification exacte des rappels d'ouverture. |
+| `RECEIVE_BOOT_COMPLETED` | Conservation des notifications planifiées après redémarrage. |
+| `VIBRATE` | Vibration notification. |
+| `WAKE_LOCK` | Gestion notification/alarme. |
 
-### Ajouter un nouvel ecran
+## 5. Livraison, exploitation & structure projet
 
-Processus recommande en respectant l'architecture actuelle:
+### Livraison APK via Firebase App Distribution
 
-1. Creer le fichier dans `lib/views/<nom>_view.dart`.
-2. Utiliser `StatefulWidget` si l'ecran possede controleurs, chargement, onglets, selection ou logique de formulaire; sinon `StatelessWidget`.
-3. Reutiliser `BuckshotTheme` et les widgets existants (`BuckshotInputField`, `BarreDeNavigation`, `DateTimePicker`) avant de recreer un composant.
-4. Gerer les donnees temps reel via `StreamBuilder` lorsque l'ecran doit reagir a Firestore.
-5. Gerer les lectures ponctuelles via `FutureBuilder` ou methode async locale.
-6. Ajouter la navigation depuis `HomeView`, une vue existante ou un bouton dedie.
-7. Si l'ecran depend d'un role, appliquer le filtrage UI dans `HomeView` ou dans l'ecran, mais aussi ajouter la protection dans les regles Firestore.
+L'application Android est livrée sous forme d'APK et distribuée via Firebase App Distribution.
 
-### Ajouter un nouveau module metier
-
-Pour limiter la dispersion actuelle de logique Firebase:
-
-1. Definir ou completer un modele dans `lib/models/`.
-2. Centraliser les requetes dans un service `lib/services/<module>_service.dart`.
-3. Exposer des methodes explicites: `Stream<T>`, `Future<T>`, transactions.
-4. Garder la vue responsable uniquement de l'etat UI et des messages utilisateur.
-5. Documenter la collection et les index Firestore requis dans ce fichier.
-
-Exemple attendu pour un module "organisations":
-
-- `models/organisation_model.dart`
-- `models/demande_orga_model.dart`
-- `services/organisation_service.dart`
-- widgets UI dans `widgets/organisation_section.dart`
-- vues consommatrices dans `ProfileView` ou ecran dedie.
-
-### Bonnes pratiques specifiques au code Buckshot
-
-| Pratique | Application concrete |
+| Élément | Valeur |
 |---|---|
-| Aligner schemas et modeles | Harmoniser `users.role` avec `Role`, renommer le modele utilisateur, choisir definitivement entre `billets` et `tickets`. |
-| Proteger les compteurs | Garder `placesRestantes` modifie uniquement par transaction et refuser les updates arbitraires cote rules. |
-| Eviter les doublons de billets | Preferer un document `billets/{uid_eventId}` ou une sous-collection `events/{eventId}/billets/{uid}` pour garantir l'unicite. |
-| Eviter images Base64 volumineuses | Le code limite a 1 Mo Base64, mais Firebase Storage serait plus adapte pour les images d'evenements en production. |
-| Respecter le cycle de vie | Disposer tous les `TextEditingController`, `TabController`, `MobileScannerController` et `TapGestureRecognizer`. |
-| Ne pas faire confiance au role client | Toute action staff/organisateur doit etre validee par les regles Firestore. |
-| Centraliser les services | Les vues contiennent encore beaucoup de logique Firestore; les nouveaux developpements devraient tendre vers des services dedies. |
-| Verifier les assets Markdown | `PrivacyCheckbox` charge `assets/markdown/privacy_politique.md`, tandis que `PrivacyPolicyView` cherche `assets/markdown/privacy_policy.md`, fichier non liste dans `pubspec.yaml`. |
+| Projet Firebase | `buckshot-a9242` |
+| Application Android | `com.shotgun.buckshot` |
+| App ID Firebase Android | `1:443286525719:android:2e47a17d1ecaf41d3c4952` |
+| Version Flutter | `1.0.0+1` dans `pubspec.yaml` |
+| Configuration Google Services | `android/app/google-services.json` |
+| Build Android | `android/app/build.gradle.kts` |
 
-### Dette technique identifiee
+Le build Android utilise :
 
-| Zone | Observation | Impact |
-|---|---|---|
-| `utilisateur_model.dart` | Classe nommee `EventModel` au lieu d'un modele utilisateur. | Confusion imports, collisions potentielles avec le vrai `EventModel`. |
-| Roles | Enum Dart minuscule vs valeurs Firestore majuscules. | Conversion fragile, modele utilisateur inutilisable tel quel avec les donnees reelles. |
-| `tickets` vs `billets` | Deux schemas de tickets coexistent. | Risque de rules incoherentes et de seed non compatible avec le scanner actuel. |
-| `EventModel.fromFirestore` | `dateFermetureBilletterie` lit `dateFinEvent`. | Fermeture billetterie erronee dans les usages du modele. |
-| `CreateEventView` | La cle `key` est construite mais non utilisee; `.add()` cree un id aleatoire. | L'id logique du modele n'est pas persiste comme id document. |
-| `CreateEventView` | Test de fermeture: `selectedCloseDate == null || selectedCloseDate == null`. | `selectedCloseTime` n'est pas valide explicitement. |
-| `ProfileView` / widgets sections | Logique organisation et mot de passe dupliquee entre vue et widgets. | Maintenance plus couteuse, comportements divergents possibles. |
-| Suppression compte | Nettoie seulement `users` et `demandes_organisation`. | Donnees orphelines dans `billets`, `reminders`, evenements ou roles staff. |
-| `FavoritesView` | Lit `event['imageUrl']` alors que les evenements utilisent `image` Base64. | Image favori probablement fallback ou invalide. |
-| `scannedBy` | Renseigne le `userId` du billet, pas le staff connecte. | Audit de scan inexploitable pour savoir qui a scanne. |
+- `com.android.application`
+- `com.google.gms.google-services`
+- `kotlin-android`
+- `dev.flutter.flutter-gradle-plugin`
+- Java 17
+- `coreLibraryDesugaring`
 
-### Checklist contribution avant merge
+### Assets embarqués
 
-1. L'ecran compile et tous les controleurs sont disposes.
-2. Les champs Firestore ajoutes sont documentes dans la section modele de donnees.
-3. Les requetes composees nouvelles ont leurs index notes.
-4. Les actions sensibles sont protegees par role dans les regles Firestore, pas uniquement dans l'UI.
-5. Les transitions de navigation ne creent pas de pile incoherente apres login, logout ou suppression.
-6. Les messages d'erreur Firebase sont geres dans le service ou la vue responsable.
-7. Les dates sont converties explicitement entre `Timestamp` et `DateTime`.
-8. Les images utilisent le meme champ (`image`) dans toutes les vues tant que Firebase Storage n'est pas introduit.
+| Asset | Usage |
+|---|---|
+| `assets/BuckshotLogoLong.png` | Logo principal sur login, register, accueil. |
+| `assets/BuckshotLogoShort.png` | Logo court. |
+| `assets/logo.png` | Icône launcher. |
+| `assets/logoDessusDessous.png` | Logo splash screen. |
+| `assets/fond.png` | Image de fond splash screen. |
+| `assets/soiree.png` | Image de secours pour événements sans image valide. |
+| `assets/markdown/privacy_politique.md` | Politique de confidentialité. |
+| `assets/markdown/mentions_legales.md` | Mentions légales. |
+
+### Splash screen et icône
+
+La configuration `flutter_native_splash` utilise :
+
+| Paramètre | Valeur |
+|---|---|
+| `background_image` | `assets/fond.png` |
+| `image` | `assets/logoDessusDessous.png` |
+| `fullscreen` | `true` |
+| Android 12 image | `assets/logoDessusDessous.png` |
+| Android 12 background | `#0B0914` |
+
+La configuration `flutter_launcher_icons` utilise `assets/logo.png` pour Android et iOS.
+
+### Structure projet
+
+| Chemin | Contenu |
+|---|---|
+| `lib/main.dart` | Initialisation Firebase, notifications, routing initial. |
+| `lib/firebase_options.dart` | Options Firebase générées par FlutterFire CLI. |
+| `lib/buckshot_theme.dart` | Thème global Buckshot. |
+| `lib/models/` | Modèles `EventModel`, `GroupeOrganisateur`, `DemandeOrgaModel`, billet et enums. |
+| `lib/services/` | Services d'authentification, événements, user role, scanner, notifications. |
+| `lib/views/` | Écrans applicatifs complets. |
+| `lib/widgets/` | Widgets partagés. |
+| `assets/` | Images, logos et documents Markdown. |
+| `android/` | Projet Android et configuration APK. |
+| `docs/` | Documentation technique. |
+
+### Conventions de développement observées
+
+| Élément | Convention |
+|---|---|
+| Fichiers Dart | `snake_case.dart` |
+| Vues | Suffixe `View`, avec exception `RegisterPage`. |
+| Services | Suffixe `Service`. |
+| Modèles | Suffixe `Model` pour les principaux modèles. |
+| Navigation | `Navigator.push`, `pushReplacement`, `pushAndRemoveUntil`, `PageRouteBuilder`. |
+| Temps réel Firestore | `StreamBuilder`. |
+| Chargement ponctuel | `FutureBuilder`. |
+| Formulaires | `TextEditingController`, validation locale et SnackBars. |
+| Images événements | Base64 stocké dans le champ `image`. |
+| Dates | `Timestamp` Firestore converti en `DateTime` et formaté via `intl`. |
+
+### Modules applicatifs
+
+| Module | Fichiers principaux |
+|---|---|
+| Authentification | `auth_service.dart`, `login_view.dart`, `register_view.dart`, `forgot_password_view.dart` |
+| Accueil catalogue | `home_view.dart`, `event_service.dart`, `shotgun_banner.dart`, `shotgun_item.dart` |
+| Recherche | `search_view.dart`, `barre_de_recherche.dart` |
+| Billets | `my_tickets_view.dart`, `ticket_detail_view.dart` |
+| Scanner | `staff_view.dart`, `scanner_view.dart`, `scanner_service.dart` |
+| Gestion événement | `create_event_view.dart`, `manage_event_view.dart`, `edit_event_view.dart` |
+| Profil et organisation | `profile_view.dart`, `received_requests_list.dart`, `organisation_section.dart`, `profile_info_section.dart` |
+| Notifications | `notification_service.dart`, intégration dans `main.dart` et `EventDetailView` |
+| Documents légaux | `privacy_checkbox.dart`, `login_view.dart`, `profile_view.dart`, assets Markdown |
