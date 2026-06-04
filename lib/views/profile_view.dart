@@ -387,7 +387,7 @@ class _ProfileViewState extends State<ProfileView> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                fillColor: const Color(0xFF161224),
                 hintText: "Mot de passe",
                 hintStyle: const TextStyle(color: Colors.grey),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -438,12 +438,13 @@ class _ProfileViewState extends State<ProfileView> {
           controller: controller,
           readOnly: readOnly,
           obscureText: isObscured,
-          style: GoogleFonts.jura(color: readOnly ? theme.colorScheme.onSurface.withValues(alpha: 0.5) : theme.colorScheme.onSurface, fontSize: 16),
+          style: GoogleFonts.jura(color: readOnly ? Colors.white.withValues(alpha: 0.5) : Colors.white, fontSize: 16),
           decoration: InputDecoration(
             filled: true,
-            fillColor: readOnly ? theme.colorScheme.surface.withValues(alpha: 0.5) : theme.colorScheme.surfaceContainerHighest,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.surface, width: 1)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.surface, width: 1)),
+            fillColor: const Color(0xFF161224),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white10, width: 1)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white10, width: 1)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: theme.colorScheme.primary, width: 1)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             suffixIcon: onToggleObscure != null
                 ? IconButton(
