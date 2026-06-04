@@ -49,26 +49,24 @@ class _HomeViewState extends State<HomeView> {
         final role = roleSnapshot.data ?? 'USER';
         final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
 
-        // Reconstruction dynamique des pages selon les droits
         List<Widget> activePages = [
           _allPages[0],
           _allPages[1],
         ];
 
         if (showScanner) {
-          activePages.add(_allPages[2]); // StaffView 
+          activePages.add(_allPages[2]); 
         }
 
         activePages.addAll([
-          _allPages[3], // MyTicketsView
-          _allPages[4], // ProfileView
+          _allPages[3], 
+          _allPages[4], 
         ]);
 
         if (_currentIndex >= activePages.length) {
           _currentIndex = activePages.length - 1;
         }
 
-        // Reconstruction dynamique des items de la barre de navigation
         List<NavItem> navItems = [
           NavItem(icon: Icons.home_outlined, label: 'Accueil', onTap: () {}),
           NavItem(icon: Icons.search, label: 'Recherche', onTap: () {}),
@@ -142,43 +140,107 @@ class _HomeContent extends StatelessWidget {
             final allDocs = eventSnapshot.data ?? [];
             if (allDocs.isEmpty) return const Center(child: Text('Aucun événement disponible'));
 
-            // --- Filtrage : Uniquement les événements futurs ---
-            final upcomingEvents = allDocs.where((doc) {
+            // --- Filtre global Inscriptions : Événements dont la date de fin n'est pas passée ---
+            final liveOrUpcomingEvents = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateFin = data['dateFinEvent'] as Timestamp?;
+              final dateHeure = data['dateHeureEvent'] as Timestamp?;
+              final DateTime targetDate = dateFin?.toDate() ?? dateHeure?.toDate() ?? now;
+              return targetDate.isAfter(now);
+            }).toList();
+
+            // --- Filtre strict (Toutes autres sections) : Événements dont la date d'événement n'est pas passée ---
+            final strictlyUpcomingEvents = liveOrUpcomingEvents.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
               return dateHeure != null && dateHeure.toDate().isAfter(now);
             }).toList();
 
-            // --- 1. Vos Inscriptions ---
-            final myInscriptionsDocs = upcomingEvents.where((doc) => myRegisteredIds.contains(doc.id)).toList();
 
-            // --- 2. En tête d'affiche ---
-            final headlinerDocs = List<QueryDocumentSnapshot>.from(upcomingEvents);
-
-            // --- 3. Nouveautés ---
-            List<QueryDocumentSnapshot> noveltyDocs = List.from(upcomingEvents);
-            noveltyDocs.sort((a, b) {
+            // --- 1. "Dernier shotgun en cours" : dateOuvertureBilletterie le plus proche de maintenant ---
+            List<QueryDocumentSnapshot> sortedByBilleterieProche = List.from(strictlyUpcomingEvents);
+            sortedByBilleterieProche.sort((a, b) {
               final dataA = a.data() as Map<String, dynamic>;
               final dataB = b.data() as Map<String, dynamic>;
               final dateA = dataA['dateOuvertureBilletterie'] as Timestamp?;
               final dateB = dataB['dateOuvertureBilletterie'] as Timestamp?;
-              if (dateA == null || dateB == null) return 0;
+
+              if (dateA == null && dateB == null) return 0;
+              if (dateA == null) return 1;
+              if (dateB == null) return -1;
+
+              final diffA = (dateA.toDate().difference(now)).abs().inMilliseconds;
+              final diffB = (dateB.toDate().difference(now)).abs().inMilliseconds;
+              return diffA.compareTo(diffB);
+            });
+
+            final mainEventDoc = sortedByBilleterieProche.isNotEmpty ? sortedByBilleterieProche.first : allDocs.first;
+            final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
+
+
+            // --- 2. "En tête d'affiche" : Billetterie ouverte, trié par taux de remplissage élevé ---
+            final headlinerDocs = strictlyUpcomingEvents.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateOuverture = data['dateOuvertureBilletterie'] as Timestamp?;
+              return dateOuverture != null && dateOuverture.toDate().isBefore(now);
+            }).toList();
+
+            headlinerDocs.sort((a, b) {
+              final dataA = a.data() as Map<String, dynamic>;
+              final dataB = b.data() as Map<String, dynamic>;
+
+              final int placesRestantesA = dataA['placesRestantes'] ?? 0;
+              final int capaciteMaxA = dataA['capaciteMax'] ?? 1;
+              final int placesRestantesB = dataB['placesRestantes'] ?? 0;
+              final int capaciteMaxB = dataB['capaciteMax'] ?? 1;
+
+              final double rempliA = (capaciteMaxA - placesRestantesA) / (capaciteMaxA <= 0 ? 1 : capaciteMaxA);
+              final double rempliB = (capaciteMaxB - placesRestantesB) / (capaciteMaxB <= 0 ? 1 : capaciteMaxB);
+
+              return rempliB.compareTo(rempliA);
+            });
+
+
+            // --- 3. "Vos Inscriptions" ---
+            final myInscriptionsDocs = liveOrUpcomingEvents.where((doc) => myRegisteredIds.contains(doc.id)).toList();
+
+
+            // --- 4. "Nouveautés" : Trié par date de création ---
+            List<QueryDocumentSnapshot> noveltyDocs = List.from(strictlyUpcomingEvents);
+            noveltyDocs.sort((a, b) {
+              final dataA = a.data() as Map<String, dynamic>;
+              final dataB = b.data() as Map<String, dynamic>;
+              final dateA = dataA['createdAt'] as Timestamp?;
+              final dateB = dataB['createdAt'] as Timestamp?;
+
+              if (dateA == null && dateB == null) return 0;
+              if (dateA == null) return 1;
+              if (dateB == null) return -1;
+
               return dateB.compareTo(dateA);
             });
-            if (noveltyDocs.length > 10) {
-              noveltyDocs = noveltyDocs.sublist(0, 10);
-            }
 
-            // --- 4. Bannière principale ---
-            List<QueryDocumentSnapshot> sortedUpcoming = List.from(upcomingEvents);
-            sortedUpcoming.sort((a, b) {
-              final dateA = (a.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
-              final dateB = (b.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
+
+            // --- 5. "Les prochains shotgun" : Pas encore ouverts, ordre chronologique d'ouverture ---
+            final upcomingShotgunDocs = strictlyUpcomingEvents.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final dateOuverture = data['dateOuvertureBilletterie'] as Timestamp?;
+              return dateOuverture != null && dateOuverture.toDate().isAfter(now);
+            }).toList();
+
+            upcomingShotgunDocs.sort((a, b) {
+              final dataA = a.data() as Map<String, dynamic>;
+              final dataB = b.data() as Map<String, dynamic>;
+              final dateA = dataA['dateOuvertureBilletterie'] as Timestamp?;
+              final dateB = dataB['dateOuvertureBilletterie'] as Timestamp?;
+
+              if (dateA == null && dateB == null) return 0;
+              if (dateA == null) return 1;
+              if (dateB == null) return -1;
+
               return dateA.compareTo(dateB);
             });
 
-            final mainEventDoc = sortedUpcoming.isNotEmpty ? sortedUpcoming.first : allDocs.first;
-            final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
 
             return SafeArea(
               child: SingleChildScrollView(
@@ -197,7 +259,6 @@ class _HomeContent extends StatelessWidget {
                             height: 40,
                             fit: BoxFit.contain,
                           ),
-                          // Écoute en temps réel les favoris pour modifier l'icône du bouton
                           StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection('reminders')
@@ -228,7 +289,7 @@ class _HomeContent extends StatelessWidget {
                       ),
                     ),
 
-                    // --- Bannière principale ---
+                    // --- 1. Bannière principale ---
                     _buildSectionTitle(context, 'Dernier shotgun en cours'),
                     ShotgunBanner(
                       title: mainEvent['nom'] ?? 'Événement',
@@ -249,7 +310,19 @@ class _HomeContent extends StatelessWidget {
                       },
                     ),
 
-                    // --- Vos Inscriptions ---
+                    // --- 2. En tête d'affiche ---
+                    _buildSectionTitle(context, 'En tête d’affiche'),
+                    headlinerDocs.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text(
+                              "Aucun événement ouvert aux inscriptions pour le moment 🛑",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
+                        : _buildHorizontalEventList(headlinerDocs),
+
+                    // --- 3. Vos Inscriptions ---
                     _buildSectionTitle(context, 'Vos inscriptions'),
                     myInscriptionsDocs.isEmpty
                         ? const Padding(
@@ -261,19 +334,7 @@ class _HomeContent extends StatelessWidget {
                           )
                         : _buildHorizontalEventList(myInscriptionsDocs),
 
-                    // --- En tête d'affiche ---
-                    _buildSectionTitle(context, 'En tête d’affiche'),
-                    headlinerDocs.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                            child: Text(
-                              "Plus aucun événement disponible pour le moment 🛑",
-                              style: TextStyle(color: Colors.grey, fontSize: 14),
-                            ),
-                          )
-                        : _buildHorizontalEventList(headlinerDocs),
-
-                    // --- Nouveautés ---
+                    // --- 4. Nouveautés ---
                     _buildSectionTitle(context, 'Nouveautés'),
                     noveltyDocs.isEmpty
                         ? const Padding(
@@ -284,6 +345,18 @@ class _HomeContent extends StatelessWidget {
                             ),
                           )
                         : _buildHorizontalEventList(noveltyDocs),
+
+                    // --- 5. Les prochains shotgun ---
+                    _buildSectionTitle(context, 'Les prochains shotgun'),
+                    upcomingShotgunDocs.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                            child: Text(
+                              "Aucune ouverture planifiée à venir ⏰",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          )
+                        : _buildHorizontalEventList(upcomingShotgunDocs),
 
                     const SizedBox(height: 24),
                   ],
