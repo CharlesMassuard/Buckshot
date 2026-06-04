@@ -199,6 +199,15 @@ class _EditEventViewState extends State<EditEventView> {
     required bool isOpen,
     required bool isClose,
   }) async {
+    String pickerTitle = "Date de fin";
+    if (isStart) {
+      pickerTitle = "Début de l'événement";
+    } else if (isOpen) {
+      pickerTitle = "Ouverture billetterie";
+    } else if (isClose) {
+      pickerTitle = "Fermeture billetterie";
+    }
+
     final pickerTheme = Theme.of(context).copyWith(
       colorScheme: ColorScheme.dark(
         primary: neonPurple,
@@ -216,6 +225,7 @@ class _EditEventViewState extends State<EditEventView> {
 
     final DateTime? pickedDate = await showDatePicker(
       context: context,
+      helpText: pickerTitle.toUpperCase(),
       initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
@@ -227,6 +237,7 @@ class _EditEventViewState extends State<EditEventView> {
 
       final TimeOfDay? pickedTime = await showTimePicker(
         context: context,
+        helpText: pickerTitle.toUpperCase(),
         initialTime: TimeOfDay.now(),
         initialEntryMode: TimePickerEntryMode.input,
         builder: (context, child) => Theme(data: pickerTheme, child: child!),
