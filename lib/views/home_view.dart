@@ -2,16 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
+// Services
+import '../services/user_service.dart';
+import '../services/event_service.dart';
+
+// Widgets
 import '../widgets/shotgun_banner.dart';
 import '../widgets/shotgun_item.dart';
 import '../widgets/barre_de_navigation.dart';
+<<<<<<< HEAD
 import '../services/event_service.dart';
 import '../services/user_service.dart';
+=======
+
+// Vues
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
 import 'event_detail_view.dart';
 import 'search_view.dart';
 import 'profile_view.dart';
 import 'my_tickets_view.dart';
 import 'staff_view.dart';
+import 'favorites_view.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -36,6 +48,7 @@ class _HomeViewState extends State<HomeView> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
+<<<<<<< HEAD
     return StreamBuilder<DocumentSnapshot>(
       stream: _userService.getUserSnapshot(user?.uid),
       builder: (context, snapshot) {
@@ -48,18 +61,36 @@ class _HomeViewState extends State<HomeView> {
         final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
 
         // Reconstruction de l'ordre des pages en fonction du rôle
+=======
+    return StreamBuilder<String>(
+      stream: _userService.getUserRole(user?.uid),
+      builder: (context, roleSnapshot) {
+        final role = roleSnapshot.data ?? 'USER';
+        final bool showScanner = (role == 'ORGANISATEUR' || role == 'STAFF');
+
+        // Reconstruction dynamique des pages selon les droits
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
         List<Widget> activePages = [
           _allPages[0], // Accueil
           _allPages[1], // Recherche
         ];
 
         if (showScanner) {
+<<<<<<< HEAD
           activePages.add(_allPages[2]); // Vue Scanner / Staff
         }
 
         activePages.addAll([
           _allPages[3], // Billets
           _allPages[4], // Profil
+=======
+          activePages.add(_allPages[2]); // StaffView 
+        }
+
+        activePages.addAll([
+          _allPages[3], // MyTicketsView
+          _allPages[4], // ProfileView
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
         ]);
 
         // Sécurité contre les changements de rôle à la volée pour éviter l'index out of bounds
@@ -67,8 +98,12 @@ class _HomeViewState extends State<HomeView> {
           _currentIndex = activePages.length - 1;
         }
 
+<<<<<<< HEAD
         // Configuration dynamique des index pour la barre de navigation
         int itemIndex = 0;
+=======
+        // Reconstruction dynamique des items de la barre de navigation
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
         List<NavItem> navItems = [
           NavItem(
             icon: Icons.home_outlined, 
@@ -153,9 +188,11 @@ class _HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = FirebaseAuth.instance.currentUser;
+    final eventService = EventService();
     final now = DateTime.now();
     final EventService eventService = EventService();
 
+<<<<<<< HEAD
     return StreamBuilder<QuerySnapshot>(
       stream: eventService.getUserTickets(user?.uid),
       builder: (context, billetSnapshot) {
@@ -167,15 +204,25 @@ class _HomeContent extends StatelessWidget {
 
         return StreamBuilder<QuerySnapshot>(
           stream: eventService.getEventsSnapshot(),
+=======
+    return StreamBuilder<Set<String>>(
+      stream: eventService.getMyRegisteredEventIds(user?.uid),
+      builder: (context, billetSnapshot) {
+        final myRegisteredIds = billetSnapshot.data ?? {};
+
+        return StreamBuilder<List<QueryDocumentSnapshot>>(
+          stream: eventService.getAllEvents(),
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
           builder: (context, eventSnapshot) {
             if (eventSnapshot.hasError) return const Center(child: Text('Erreur...'));
             if (eventSnapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
             }
 
-            final allDocs = eventSnapshot.data?.docs ?? [];
+            final allDocs = eventSnapshot.data ?? [];
             if (allDocs.isEmpty) return const Center(child: Text('Aucun événement disponible'));
 
+<<<<<<< HEAD
             // Filtre des inscriptions personnelles actives
             final myInscriptionsDocs = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
@@ -187,19 +234,32 @@ class _HomeContent extends StatelessWidget {
 
             // Filtre Tête d'affiche
             final headlinerDocs = allDocs.where((doc) {
+=======
+            // --- Filtrage : Uniquement les événements futurs ---
+            final upcomingEvents = allDocs.where((doc) {
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
               return dateHeure != null && dateHeure.toDate().isAfter(now);
             }).toList();
 
+<<<<<<< HEAD
             // Filtre et Tri des Nouveautés
             final activeNoveltyDocs = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final dateHeure = data['dateHeureEvent'] as Timestamp?;
               return dateHeure != null && dateHeure.toDate().isAfter(now);
             }).toList();
+=======
+            // --- 1. Vos Inscriptions ---
+            final myInscriptionsDocs = upcomingEvents.where((doc) => myRegisteredIds.contains(doc.id)).toList();
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
 
-            List<QueryDocumentSnapshot> noveltyDocs = List.from(activeNoveltyDocs);
+            // --- 2. En tête d'affiche ---
+            final headlinerDocs = List<QueryDocumentSnapshot>.from(upcomingEvents);
+
+            // --- 3. Nouveautés ---
+            List<QueryDocumentSnapshot> noveltyDocs = List.from(upcomingEvents);
             noveltyDocs.sort((a, b) {
               final dataA = a.data() as Map<String, dynamic>;
               final dataB = b.data() as Map<String, dynamic>;
@@ -212,6 +272,7 @@ class _HomeContent extends StatelessWidget {
               noveltyDocs = noveltyDocs.sublist(0, 10);
             }
 
+<<<<<<< HEAD
             // Calcul de l'événement principal pour la bannière
             final upcomingEvents = allDocs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
@@ -220,12 +281,17 @@ class _HomeContent extends StatelessWidget {
             }).toList();
 
             upcomingEvents.sort((a, b) {
+=======
+            // --- 4. Bannière principale ---
+            List<QueryDocumentSnapshot> sortedUpcoming = List.from(upcomingEvents);
+            sortedUpcoming.sort((a, b) {
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
               final dateA = (a.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
               final dateB = (b.data() as Map<String, dynamic>)['dateHeureEvent'] as Timestamp;
               return dateA.compareTo(dateB);
             });
 
-            final mainEventDoc = upcomingEvents.isNotEmpty ? upcomingEvents.first : allDocs.first;
+            final mainEventDoc = sortedUpcoming.isNotEmpty ? sortedUpcoming.first : allDocs.first;
             final mainEvent = mainEventDoc.data() as Map<String, dynamic>;
 
             return SafeArea(
@@ -234,7 +300,11 @@ class _HomeContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+<<<<<<< HEAD
                     // --- App Bar / Logo Section ---
+=======
+                    // --- Header (Logo + Bouton Favoris) ---
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                       child: Row(
@@ -245,15 +315,43 @@ class _HomeContent extends StatelessWidget {
                             height: 40,
                             fit: BoxFit.contain,
                           ),
+<<<<<<< HEAD
                           IconButton(
                             icon: const Icon(Icons.favorite_border_rounded, color: Colors.white, size: 28),
                             onPressed: () {},
+=======
+                          StreamBuilder<bool>(
+                            stream: eventService.hasFavorites(user?.uid),
+                            builder: (context, remindersSnapshot) {
+                              final bool hasFavorites = remindersSnapshot.data ?? false;
+
+                              return IconButton(
+                                icon: Icon(
+                                  hasFavorites ? Icons.favorite : Icons.favorite_border_rounded,
+                                  color: hasFavorites ? const Color(0xFF9D4EDD) : Colors.white,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const FavoritesView(),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                           ),
                         ],
                       ),
                     ),
 
+<<<<<<< HEAD
                     // --- Bannière Principale ---
+=======
+                    // --- Bannière principale ---
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                     _buildSectionTitle(context, 'Dernier shotgun en cours'),
                     ShotgunBanner(
                       title: mainEvent['nom'] ?? 'Événement',
@@ -274,28 +372,55 @@ class _HomeContent extends StatelessWidget {
                       },
                     ),
 
+<<<<<<< HEAD
                     // --- Sections horizontales imbriquées ---
+=======
+                    // --- Vos Inscriptions ---
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                     _buildSectionTitle(context, 'Vos inscriptions'),
                     myInscriptionsDocs.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+<<<<<<< HEAD
                             child: Text("Vous n'avez pas encore de réservations 🎫", style: TextStyle(color: Colors.grey, fontSize: 14)),
+=======
+                            child: Text(
+                              "Vous n'avez pas encore de réservations 🎫",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                           )
                         : _buildHorizontalEventList(myInscriptionsDocs),
 
+                    // --- En tête d'affiche ---
                     _buildSectionTitle(context, 'En tête d’affiche'),
                     headlinerDocs.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+<<<<<<< HEAD
                             child: Text("Plus aucun événement disponible pour le moment 🛑", style: TextStyle(color: Colors.grey, fontSize: 14)),
+=======
+                            child: Text(
+                              "Plus aucun événement disponible pour le moment 🛑",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                           )
                         : _buildHorizontalEventList(headlinerDocs),
 
+                    // --- Nouveautés ---
                     _buildSectionTitle(context, 'Nouveautés'),
                     noveltyDocs.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+<<<<<<< HEAD
                             child: Text("Aucune nouveauté récente.", style: TextStyle(color: Colors.grey, fontSize: 14)),
+=======
+                            child: Text(
+                              "Aucune nouveauté récente.",
+                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+>>>>>>> ff7368ba854f8c469e94bd9a296fba73aa96a4e5
                           )
                         : _buildHorizontalEventList(noveltyDocs),
 

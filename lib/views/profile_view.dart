@@ -145,6 +145,7 @@ class _ProfileViewState extends State<ProfileView> {
           }
 
           final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+          final String email = userData?['email'] ?? '';
           final String prenom = userData?['prenom'] ?? '';
           final String nom = userData?['nom'] ?? '';
           final String role = userData?['role'] ?? 'USER';
@@ -157,6 +158,7 @@ class _ProfileViewState extends State<ProfileView> {
               children: [
                 // 1. Formulaire Prénom / Nom
                 ProfileInfoSection(
+                  email: email,
                   initialFirstName: prenom,
                   initialLastName: nom,
                   userId: user?.uid ?? '',
