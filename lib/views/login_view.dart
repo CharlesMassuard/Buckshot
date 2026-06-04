@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../services/auth_service.dart';
 import '../widgets/buckshot_input_field.dart'; 
 import 'forgot_password_view.dart';
@@ -22,17 +25,70 @@ class _LoginViewState extends State<LoginView> {
   bool _isLoading = false;
   bool _isPasswordObscured = true;
 
-  
   @override
   void initState() {
     super.initState();
     _emailController = TextEditingController(text: widget.prefilledEmail ?? '');
   }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showMarkdownDialog(BuildContext context, String title, String assetPath) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: FutureBuilder<String>(
+              future: rootBundle.loadString(assetPath),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
+                }
+                if (snapshot.hasError) {
+                  return const Text('Erreur lors du chargement du fichier', style: TextStyle(color: Colors.white));
+                }
+                
+                return SingleChildScrollView(
+                  child: MarkdownBody(
+                    data: snapshot.data ?? 'Fichier vide',
+                    styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                      p: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+                      h1: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 20),
+                      h2: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      listBullet: const TextStyle(color: Color(0xFF9D4EDD)),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fermer', style: TextStyle(color: Color(0xFF9D4EDD), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPrivacyPolicy(BuildContext context) {
+    _showMarkdownDialog(context, 'Politique de confidentialité', 'assets/markdown/privacy_politique.md');
+  }
+
+  void _showLegalMentions(BuildContext context) {
+    _showMarkdownDialog(context, 'Mentions légales', 'assets/markdown/mentions_legales.md');
   }
 
   void _signIn() async {
@@ -260,12 +316,20 @@ class _LoginViewState extends State<LoginView> {
   Widget _buildFooter(ThemeData theme) {
     return Text.rich(
       TextSpan(
-        text: 'En vous connectant, vous acceptez nos ',
-        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[400]),
-        children: const [
-          TextSpan(text: 'mentions légales', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
-          TextSpan(text: ' et notre '),
-          TextSpan(text: 'politique de confidentialité', style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
+        text: 'En vous connectant, vous acceptez nos \n',
+        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[400], height: 1.4),
+        children: [
+          TextSpan(
+            text: 'mentions légales', 
+            style: const TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+            recognizer: TapGestureRecognizer()..onTap = () => _showLegalMentions(context),
+          ),
+          const TextSpan(text: ' et notre '),
+          TextSpan(
+            text: 'politique de confidentialité', 
+            style: const TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+            recognizer: TapGestureRecognizer()..onTap = () => _showPrivacyPolicy(context),
+          ),
         ],
       ),
       textAlign: TextAlign.center,
