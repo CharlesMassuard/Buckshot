@@ -99,101 +99,107 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
     return Scaffold(
       backgroundColor: const Color(0xFF0B0914),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('events').snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return const Center(child: Text('Erreur réseau...'));
-            }
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
-            }
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 20.0, bottom: 17.0),
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: BarreDeRecherche(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.toLowerCase();
+                  });
+                },
+              ),
+            ),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('events').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Expanded(child: Center(child: Text('Erreur réseau...')));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD))));
+                }
 
-            final allDocs = snapshot.data?.docs ?? [];
-            final now = DateTime.now();
+                final allDocs = snapshot.data?.docs ?? [];
+                final now = DateTime.now();
 
-            final filteredDocs = allDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final name = (data['nom'] ?? '').toString().toLowerCase();
-              return name.contains(_searchQuery);
-            }).toList();
+                final filteredDocs = allDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['nom'] ?? '').toString().toLowerCase();
+                  return name.contains(_searchQuery);
+                }).toList();
 
-            final upcomingItems = filteredDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
-              return start != null && start.toDate().isAfter(now);
-            }).toList();
+                final upcomingItems = filteredDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
+                  return start != null && start.toDate().isAfter(now);
+                }).toList();
 
-            final ongoingItems = filteredDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
-              final Timestamp? end = data['dateFinEvent'] as Timestamp?;
-              if (start == null) return false;
-              final startDate = start.toDate();
-              final endDate = end?.toDate() ?? startDate.add(const Duration(hours: 4));
-              return startDate.isBefore(now) && endDate.isAfter(now);
-            }).toList();
+                final ongoingItems = filteredDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
+                  final Timestamp? end = data['dateFinEvent'] as Timestamp?;
+                  if (start == null) return false;
+                  final startDate = start.toDate();
+                  final endDate = end?.toDate() ?? startDate.add(const Duration(hours: 4));
+                  return startDate.isBefore(now) && endDate.isAfter(now);
+                }).toList();
 
-            final pastItems = filteredDocs.where((doc) {
-              final data = doc.data() as Map<String, dynamic>;
-              final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
-              final Timestamp? end = data['dateFinEvent'] as Timestamp?;
-              if (start == null) return true;
-              final endDate = end?.toDate() ?? start.toDate().add(const Duration(hours: 4));
-              return endDate.isBefore(now);
-            }).toList();
+                final pastItems = filteredDocs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
+                  final Timestamp? end = data['dateFinEvent'] as Timestamp?;
+                  if (start == null) return true;
+                  final endDate = end?.toDate() ?? start.toDate().add(const Duration(hours: 4));
+                  return endDate.isBefore(now);
+                }).toList();
 
-            return Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 20.0, bottom: 17.0),
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: BarreDeRecherche(
-                    controller: _searchController,
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value.toLowerCase();
-                      });
-                    },
+                return Expanded(
+                  child: Column(
+                    children: [
+                      TabBar(
+                        controller: _tabController,
+                        indicatorColor: theme.colorScheme.secondary,
+                        indicatorWeight: 3,
+                        indicatorSize: TabBarIndicatorSize.label,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.grey[500],
+                        labelStyle: GoogleFonts.jura(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        unselectedLabelStyle: GoogleFonts.jura(
+                          fontSize: 16,
+                        ),
+                        tabs: [
+                          Tab(text: 'A Venir (${upcomingItems.length})'),
+                          Tab(text: 'En Cours (${ongoingItems.length})'),
+                          Tab(text: 'Passés (${pastItems.length})'),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              _buildEventList(upcomingItems),
+                              _buildEventList(ongoingItems),
+                              _buildEventList(pastItems),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: theme.colorScheme.secondary,
-                  indicatorWeight: 3,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.grey[500],
-                  labelStyle: GoogleFonts.jura(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  unselectedLabelStyle: GoogleFonts.jura(
-                    fontSize: 16,
-                  ),
-                  tabs: [
-                    Tab(text: 'A Venir (${upcomingItems.length})'),
-                    Tab(text: 'En Cours (${ongoingItems.length})'),
-                    Tab(text: 'Passés (${pastItems.length})'),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildEventList(upcomingItems),
-                        _buildEventList(ongoingItems),
-                        _buildEventList(pastItems),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

@@ -27,6 +27,8 @@ Selon la configuration du terminal, Firebase App Distribution peut demander une 
 - Gestion des demandes d'acces et des membres staff pour les organisateurs.
 - Creation d'evenements pour les utilisateurs rattaches a une organisation avec role privilegie.
 
+Documentation utilisateur complete : [docs/documentation_utilisateur.md](docs/documentation_utilisateur.md)
+
 ## Stack technique
 
 | Domaine | Technologie |
