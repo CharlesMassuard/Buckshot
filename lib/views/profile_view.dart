@@ -190,7 +190,7 @@ class _ProfileViewState extends State<ProfileView> {
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).update({
         'idOrganisateur': '',
-        'role': 'USER',
+        'role': 'ETUDIANT',
       });
       _showSnackBar("Vous avez quitté l'organisation. Retour au statut standard.", isSuccess: true);
     } catch (e) {
