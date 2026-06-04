@@ -304,6 +304,47 @@ class _EditEventViewState extends State<EditEventView> {
       return;
     }
 
+    final int newCapaciteMax = int.parse(_seatsController.text.trim());
+    if (newCapaciteMax <= 0) {
+      _showSnackBar("Le nombre de places doit être supérieur à zéro ! 🎟️");
+      return;
+    }
+
+    final int oldCapaciteMax = widget.eventData['capaciteMax'] ?? 0;
+    final int oldPlacesRestantes = widget.eventData['placesRestantes'] ?? 0;
+    final int placesVendues = oldCapaciteMax - oldPlacesRestantes;
+
+    if (newCapaciteMax < placesVendues) {
+      _showSnackBar("La capacité ne peut pas être inférieure aux places déjà vendues ($placesVendues) ! 🛑");
+      return;
+    }
+
+    final startEvent = DateTime(selectedStartDate!.year, selectedStartDate!.month, selectedStartDate!.day, selectedStartTime!.hour, selectedStartTime!.minute);
+    final endEvent = DateTime(selectedEndDate!.year, selectedEndDate!.month, selectedEndDate!.day, selectedEndTime!.hour, selectedEndTime!.minute);
+    final openTickets = DateTime(selectedOpenDate!.year, selectedOpenDate!.month, selectedOpenDate!.day, selectedOpenTime!.hour, selectedOpenTime!.minute);
+    final closeTickets = DateTime(selectedCloseDate!.year, selectedCloseDate!.month, selectedCloseDate!.day, selectedCloseTime!.hour, selectedCloseTime!.minute);
+
+    if (!endEvent.isAfter(startEvent)) {
+      _showSnackBar("La date de fin doit être après la date de début ! 🏁");
+      return;
+    }
+    if (!closeTickets.isAfter(openTickets)) {
+      _showSnackBar("La billetterie doit fermer après son ouverture ! 🔒");
+      return;
+    }
+    if (!openTickets.isBefore(endEvent)) {
+      _showSnackBar("L'ouverture de la billetterie doit se faire avant la fin de l'événement ! 🚀");
+      return;
+    }
+    if (!openTickets.isBefore(startEvent)) {
+      _showSnackBar("La billetterie doit ouvrir avant le début de l'événement ! 🔑");
+      return;
+    }
+    if (closeTickets.isAfter(endEvent)) {
+      _showSnackBar("La billetterie ne peut pas fermer après la fin de l'événement ! 🛑");
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -313,17 +354,7 @@ class _EditEventViewState extends State<EditEventView> {
         return;
       }
 
-      final int newCapaciteMax = int.parse(_seatsController.text.trim());
-      final int oldCapaciteMax = widget.eventData['capaciteMax'] ?? 0;
-      final int oldPlacesRestantes = widget.eventData['placesRestantes'] ?? 0;
-
-      final int placesVendues = oldCapaciteMax - oldPlacesRestantes;
       final int newPlacesRestantes = (newCapaciteMax - placesVendues).clamp(0, newCapaciteMax);
-
-      final DateTime finalStartDate = DateTime(selectedStartDate!.year, selectedStartDate!.month, selectedStartDate!.day, selectedStartTime!.hour, selectedStartTime!.minute);
-      final DateTime finalEndDate = DateTime(selectedEndDate!.year, selectedEndDate!.month, selectedEndDate!.day, selectedEndTime!.hour, selectedEndTime!.minute);
-      final DateTime finalOpenDate = DateTime(selectedOpenDate!.year, selectedOpenDate!.month, selectedOpenDate!.day, selectedOpenTime!.hour, selectedOpenTime!.minute);
-      final DateTime finalCloseDate = DateTime(selectedCloseDate!.year, selectedCloseDate!.month, selectedCloseDate!.day, selectedCloseTime!.hour, selectedCloseTime!.minute);
 
       await FirebaseFirestore.instance.collection('events').doc(widget.eventId).update({
         'nom': _titleController.text.trim(),
@@ -331,10 +362,10 @@ class _EditEventViewState extends State<EditEventView> {
         'lieu': _locationController.text.trim(),
         'capaciteMax': newCapaciteMax,
         'placesRestantes': newPlacesRestantes,
-        'dateHeureEvent': Timestamp.fromDate(finalStartDate),
-        'dateFinEvent': Timestamp.fromDate(finalEndDate),
-        'dateOuvertureBilletterie': Timestamp.fromDate(finalOpenDate),
-        'dateFermetureBilletterie': Timestamp.fromDate(finalCloseDate),
+        'dateHeureEvent': Timestamp.fromDate(startEvent),
+        'dateFinEvent': Timestamp.fromDate(endEvent),
+        'dateOuvertureBilletterie': Timestamp.fromDate(openTickets),
+        'dateFermetureBilletterie': Timestamp.fromDate(closeTickets),
         'image': base64ResultImage,
       });
 

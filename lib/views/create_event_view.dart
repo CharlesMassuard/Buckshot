@@ -252,8 +252,43 @@ class _CreateEventViewState extends State<CreateEventView> {
       _showSnackBar("Le nombre de places doit être un nombre valide ! 🎟️");
       return;
     }
+    if (int.parse(_seatsController.text) <= 0) {
+      _showSnackBar("Le nombre de places doit être supérieur à zéro ! 🎟️");
+      return;
+    }
     if (_image == null) {
       _showSnackBar("L'affiche de l'événement est obligatoire ! 🖼️");
+      return;
+    }
+
+    final now = DateTime.now();
+    final startEvent = DateTime(selectedStartDate!.year, selectedStartDate!.month, selectedStartDate!.day, selectedStartTime!.hour, selectedStartTime!.minute);
+    final endEvent = DateTime(selectedEndDate!.year, selectedEndDate!.month, selectedEndDate!.day, selectedEndTime!.hour, selectedEndTime!.minute);
+    final openTickets = DateTime(selectedOpenDate!.year, selectedOpenDate!.month, selectedOpenDate!.day, selectedOpenTime!.hour, selectedOpenTime!.minute);
+    final closeTickets = DateTime(selectedCloseDate!.year, selectedCloseDate!.month, selectedCloseDate!.day, selectedCloseTime!.hour, selectedCloseTime!.minute);
+
+    if (startEvent.isBefore(now)) {
+      _showSnackBar("L'événement ne peut pas débuter dans le passé ! ⏳");
+      return;
+    }
+    if (!endEvent.isAfter(startEvent)) {
+      _showSnackBar("La date de fin doit être après la date de début ! 🏁");
+      return;
+    }
+    if (!closeTickets.isAfter(openTickets)) {
+      _showSnackBar("La billetterie doit fermer après son ouverture ! 🔒");
+      return;
+    }
+    if (!openTickets.isBefore(endEvent)) {
+      _showSnackBar("L'ouverture de la billetterie doit se faire avant la fin de l'événement ! 🚀");
+      return;
+    }
+    if (!openTickets.isBefore(startEvent)) {
+      _showSnackBar("La billetterie doit ouvrir avant le début de l'événement ! 🔑");
+      return;
+    }
+    if (closeTickets.isAfter(endEvent)) {
+      _showSnackBar("La billetterie ne peut pas fermer après la fin de l'événement ! 🛑");
       return;
     }
 
@@ -295,10 +330,10 @@ class _CreateEventViewState extends State<CreateEventView> {
         capaciteMax: int.parse(_seatsController.text),
         placesRestantes: int.parse(_seatsController.text),
         lieu: _locationController.text.trim(),
-        dateHeureEvent: DateTime(selectedStartDate!.year, selectedStartDate!.month, selectedStartDate!.day, selectedStartTime!.hour, selectedStartTime!.minute),
-        dateFinEvent: DateTime(selectedEndDate!.year, selectedEndDate!.month, selectedEndDate!.day, selectedEndTime!.hour, selectedEndTime!.minute),
-        dateOuvertureBilletterie: DateTime(selectedOpenDate!.year, selectedOpenDate!.month, selectedOpenDate!.day, selectedOpenTime!.hour, selectedOpenTime!.minute),
-        dateFermetureBilletterie: DateTime(selectedCloseDate!.year, selectedCloseDate!.month, selectedCloseDate!.day, selectedCloseTime!.hour, selectedCloseTime!.minute),
+        dateHeureEvent: startEvent,
+        dateFinEvent: endEvent,
+        dateOuvertureBilletterie: openTickets,
+        dateFermetureBilletterie: closeTickets,
         image: resizedImage,
       );
 
