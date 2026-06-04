@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "443286525719",
+    "project_id": "buckshot-a9242",
+    "storage_bucket": "buckshot-a9242.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:443286525719:android:2e47a17d1ecaf41d3c4952",
+        "android_client_info": {
+          "package_name": "com.shotgun.buckshot"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "443286525719-4i92jgs85haqm4aavevl9l649uh3odsc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shotgun.buckshot",
+            "certificate_hash": "159b4436cde5b560c3025f6e5c63eb41039a393b"
+          }
+        },
+        {
+          "client_id": "443286525719-riisnhv0dpsn5nvcnj6isgak7hlf0tdq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2SxE3dTXQL45N0lcg_9yJxrWrkPU72UI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "443286525719-riisnhv0dpsn5nvcnj6isgak7hlf0tdq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "443286525719-fhl1cniq982cb0k6n37au7dl45nce3q8.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.shotgun.buckshot"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
