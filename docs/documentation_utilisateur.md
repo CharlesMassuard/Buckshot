@@ -68,7 +68,7 @@ Si la billeterie n'est pas encore ouverte, vous pouvez ajouter ce shotgun à vos
 
 *Depuis cette page, un __organisateur__ peut également accéder à la page de gestion de cet événement.*
 
-![Page de détails d'un shotgun](./imgs/detailEvent.PNG)
+![Page de détails d'un shotgun](./imgs/detailEvent.png)
 *Page de détails d'un shotgun*
 
 ### 5.4 Recherche de shotguns
