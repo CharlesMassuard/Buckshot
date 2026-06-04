@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class BuckshotInputField extends StatelessWidget {
   final TextEditingController controller;
@@ -25,31 +26,40 @@ class BuckshotInputField extends StatelessWidget {
     return TextFormField(
       controller: controller,
       obscureText: isPassword ? isObscured : false,
-      style: const TextStyle(color: Colors.white),
+      style: GoogleFonts.jura(color: Colors.white, fontSize: 16),
       validator: validator, 
       decoration: InputDecoration(
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest,
+        fillColor: const Color(0xFF161224),
         hintText: hintText,
-        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-        contentPadding: const EdgeInsets.all(18),
+        hintStyle: GoogleFonts.jura(color: Colors.grey[600]),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10), 
-          borderSide: BorderSide.none
+          borderRadius: BorderRadius.circular(12), 
+          borderSide: const BorderSide(color: Colors.white10, width: 1)
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12), 
+          borderSide: const BorderSide(color: Colors.white10, width: 1)
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12), 
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1)
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.error, width: 1),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
         ),
         suffixIcon: isPassword 
             ? IconButton(
                 icon: Icon(
-                  isObscured ? Icons.visibility_off : Icons.visibility, 
-                  color: Colors.grey[600]
+                  isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined, 
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 22,
                 ), 
                 onPressed: onToggleObscure
               ) 

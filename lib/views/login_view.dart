@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../widgets/buckshot_input_field.dart'; 
 import 'forgot_password_view.dart';
@@ -11,7 +12,7 @@ import 'home_view.dart';
 class LoginView extends StatefulWidget {
   final String? prefilledEmail;
 
-  const LoginView({super.key,this.prefilledEmail});
+  const LoginView({super.key, this.prefilledEmail});
 
   @override
   State<LoginView> createState() => _LoginViewState();
@@ -204,9 +205,9 @@ class _LoginViewState extends State<LoginView> {
                                 child: TextButton(
                                   onPressed: () {
                                     Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const ForgotPasswordView()),
-                                        );
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const ForgotPasswordView()),
+                                    );
                                   },
                                   child: Text(
                                     'Mot de passe oublié ?',
@@ -268,13 +269,13 @@ class _LoginViewState extends State<LoginView> {
         child: isLoading
             ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
             : Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 28),
-            const SizedBox(width: 14),
-            Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
-          ],
-        ),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 28),
+                  const SizedBox(width: 14),
+                  Text(label, style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.bold)),
+                ],
+              ),
       ),
     );
   }
@@ -317,7 +318,7 @@ class _LoginViewState extends State<LoginView> {
     return Text.rich(
       TextSpan(
         text: 'En vous connectant, vous acceptez nos \n',
-        style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[400], height: 1.4),
+        style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 14, height: 1.4),
         children: [
           TextSpan(
             text: 'mentions légales', 
