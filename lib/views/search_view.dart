@@ -36,9 +36,28 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  String _formatFullDate(Timestamp? timestamp) {
-    if (timestamp == null) return 'Date inconnue';
-    return DateFormat('EEE dd MMM yyyy', 'fr_FR').format(timestamp.toDate());
+  String _formatEventDate(Timestamp? timestampStart, Timestamp? timestampEnd) {
+    if (timestampStart == null) return 'Date inconnue';
+    final DateTime start = timestampStart.toDate();
+    final DateFormat formatter = DateFormat('E dd MMM', 'fr_FR');
+
+    String formatTime(DateTime dt) {
+      return dt.minute > 0
+          ? DateFormat('HH\'h\'mm').format(dt)
+          : DateFormat('HH\'h\'').format(dt);
+    }
+
+    if (timestampEnd != null) {
+      final DateTime end = timestampEnd.toDate();
+      if (start.day != end.day) {
+        return "${formatter.format(start)} - ${formatter.format(end)} ${start.year}";
+      }
+
+      final String timeRange = "${formatTime(start)}-${formatTime(end)}";
+      return "${formatter.format(start)} ${start.year} | $timeRange";
+    }
+
+    return "${formatter.format(start)} ${start.year} | ${formatTime(start)}";
   }
 
   Widget _buildEventImage(String base64Image) {
@@ -47,7 +66,7 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
         return Image.memory(
           base64Decode(base64Image),
           width: 90,
-          height: 75,
+          height: 90,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => _buildAssetPlaceholder(),
         );
@@ -62,12 +81,12 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
     return Image.asset(
       'assets/soiree.png',
       width: 90,
-      height: 75,
+      height: 90,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) => Container(
         width: 90,
-        height: 75,
-        color: Colors.grey[900],
+        height: 90,
+        color: Colors.grey[800],
         child: const Icon(Icons.image, color: Colors.white54),
       ),
     );
@@ -78,94 +97,114 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: const Color(0xFF0B0914),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: BarreDeRecherche(
-                controller: _searchController,
-                onChanged: (value) {
-                  setState(() {
-                    _searchQuery = value.toLowerCase();
-                  });
-                },
-              ),
-            ),
-            TabBar(
-              controller: _tabController,
-              indicatorColor: theme.colorScheme.secondary,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey[500],
-              labelStyle: GoogleFonts.jura(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              unselectedLabelStyle: GoogleFonts.jura(
-                fontSize: 16,
-              ),
-              tabs: const [
-                Tab(text: 'A Venir'),
-                Tab(text: 'En Cours'),
-                Tab(text: 'Passés'),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('events').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Center(child: Text('Erreur réseau...'));
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
+            }
+
+            final allDocs = snapshot.data?.docs ?? [];
+            final now = DateTime.now();
+
+            final filteredDocs = allDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final name = (data['nom'] ?? '').toString().toLowerCase();
+              return name.contains(_searchQuery);
+            }).toList();
+
+            final upcomingItems = filteredDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
+              return start != null && start.toDate().isAfter(now);
+            }).toList();
+
+            final ongoingItems = filteredDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
+              final Timestamp? end = data['dateFinEvent'] as Timestamp?;
+              if (start == null) return false;
+              final startDate = start.toDate();
+              final endDate = end?.toDate() ?? startDate.add(const Duration(hours: 4));
+              return startDate.isBefore(now) && endDate.isAfter(now);
+            }).toList();
+
+            final pastItems = filteredDocs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final Timestamp? start = data['dateHeureEvent'] as Timestamp?;
+              final Timestamp? end = data['dateFinEvent'] as Timestamp?;
+              if (start == null) return true;
+              final endDate = end?.toDate() ?? start.toDate().add(const Duration(hours: 4));
+              return endDate.isBefore(now);
+            }).toList();
+
+            return Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 20.0, bottom: 17.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: BarreDeRecherche(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                TabBar(
+                  controller: _tabController,
+                  indicatorColor: theme.colorScheme.secondary,
+                  indicatorWeight: 3,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.grey[500],
+                  labelStyle: GoogleFonts.jura(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.jura(
+                    fontSize: 16,
+                  ),
+                  tabs: [
+                    Tab(text: 'A Venir (${upcomingItems.length})'),
+                    Tab(text: 'En Cours (${ongoingItems.length})'),
+                    Tab(text: 'Passés (${pastItems.length})'),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildEventList(upcomingItems),
+                        _buildEventList(ongoingItems),
+                        _buildEventList(pastItems),
+                      ],
+                    ),
+                  ),
+                ),
               ],
-            ),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('events').snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Center(child: Text('Erreur réseau...'));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator(color: theme.colorScheme.primary));
-                  }
-
-                  final allDocs = snapshot.data?.docs ?? [];
-
-                  final filteredDocs = allDocs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final name = (data['nom'] ?? '').toString().toLowerCase();
-                    return name.contains(_searchQuery);
-                  }).toList();
-
-                  return TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildEventList(filteredDocs, 'avenir'),
-                      _buildEventList(filteredDocs, 'encours'),
-                      _buildEventList(filteredDocs, 'passes'),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildEventList(List<QueryDocumentSnapshot> docs, String tabType) {
-    final now = DateTime.now();
-
-    final tabDocs = docs.where((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final timestamp = data['dateHeureEvent'] as Timestamp?;
-      if (timestamp == null) return tabType == 'avenir';
-
-      final eventDate = timestamp.toDate();
-      if (tabType == 'avenir') return eventDate.isAfter(now);
-      if (tabType == 'passes') return eventDate.isBefore(now.subtract(const Duration(hours: 5)));
-      return eventDate.isBefore(now) && eventDate.isAfter(now.subtract(const Duration(hours: 5)));
-    }).toList();
-
+  Widget _buildEventList(List<QueryDocumentSnapshot> tabDocs) {
     if (tabDocs.isEmpty) {
       return Center(
         child: Text(
           'Aucun événement trouvé',
-          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+          style: GoogleFonts.jura(color: Colors.grey[600], fontSize: 16),
         ),
       );
     }
@@ -173,6 +212,7 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       itemCount: tabDocs.length,
+      padding: const EdgeInsets.only(bottom: 20),
       itemBuilder: (context, index) {
         final doc = tabDocs[index];
         final event = doc.data() as Map<String, dynamic>;
@@ -180,7 +220,8 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
 
         final title = event['nom'] ?? 'Événement';
         final lieu = event['lieu'] ?? 'Lieu non spécifié';
-        final dateHeure = event['dateHeureEvent'] as Timestamp?;
+        final Timestamp? dateHeure = event['dateHeureEvent'] as Timestamp?;
+        final Timestamp? dateFinEvent = event['dateFinEvent'] as Timestamp?;
         final eventImageBase64 = event['image'] ?? '';
 
         return InkWell(
@@ -195,44 +236,44 @@ class _SearchViewState extends State<SearchView> with SingleTickerProviderStateM
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 20),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   child: _buildEventImage(eventImageBase64),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
+                        style: GoogleFonts.jura(
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _formatFullDate(dateHeure),
-                        style: TextStyle(
-                          color: Colors.grey[400],
+                        _formatEventDate(dateHeure, dateFinEvent),
+                        style: GoogleFonts.jura(
                           fontSize: 13,
+                          color: Colors.grey[400],
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         lieu,
-                        style: TextStyle(
-                          color: Colors.grey[600],
+                        style: GoogleFonts.jura(
                           fontSize: 13,
+                          color: Colors.grey[400],
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

@@ -1,11 +1,9 @@
-Politique de confidentialité
+Dernière mise à jour : 4 juin 2026
 
-*Buckshot*
-
-ARTICLE 1 : PRÉAMBULE
+**ARTICLE 1 : PRÉAMBULE**
 
 La présente politique de confidentialité a pour but d'informer les
-utilisateurs du site :
+utilisateurs de l'application :
 
 -   Sur la manière dont sont collectées leurs données personnelles. Sont
     considérées comme des données personnelles, toute information
@@ -21,17 +19,10 @@ utilisateurs du site :
 
 -   Sur les destinataires de ces données personnelles ;
 
--   Sur la politique du site en matière de cookies.
+-   Sur la politique de l'application en matière de cookies.
 
-Cette politique complète les mentions légales et les Conditions
-Générales d'Utilisation consultables par les utilisateurs à l'adresse
-suivante :
-
-\[Insérer l'URL permettant d\'accéder aux Conditions Générales
-d'Utilisation et aux mentions Légales\]
-
-ARTICLE 2 : PRINCIPES RELATIFS À LA COLLECTE ET AU TRAITEMENT DES
-DONNÉES PERSONNELLES
+**ARTICLE 2 : PRINCIPES RELATIFS À LA COLLECTE ET AU TRAITEMENT DES
+DONNÉES PERSONNELLES**
 
 Conformément à l'article 5 du Règlement européen 2016/679, les données à
 caractère personnel sont :
@@ -88,153 +79,51 @@ des conditions suivantes est remplie :
     caractère personnel, notamment lorsque la personne concernée est un
     enfant.
 
-ARTICLE 3 : DONNÉES À CARACTÈRE PERSONNEL COLLECTÉES ET TRAITÉES DANS LE
-CADRE DE LA NAVIGATION SUR LE SITE
+**ARTICLE 3 : DONNÉES À CARACTÈRE PERSONNEL COLLECTÉES ET TRAITÉES DANS LE
+CADRE DE L'UTILISATION DE L'APPLICATION**
 
 **Article 3.1 : Données collectées**
 
 Les données personnelles collectées dans le cadre de notre activité sont
 les suivantes :
 
-*-Le nom*
+-  L'adresse email de l'utilisateur, utilisée pour la création d'un compte et la connexion à l'application
 
-*[-Le prénom]{.mark}*
+- Le nom et prénom de l'utilisateur, utilisés pour personnaliser son expérience sur l'application et pour les besoins de la gestion des événements
 
-*[-l'adresse mail électronique]{.mark}*
+- La présence ou non de l'utilisateur à un événement, utilisée pour la gestion des inscriptions et permettant aux organisateurs de valider la présence des participants lors des événements à l'aide d'un QR code associé à leur inscription.
 
-*[-l'adresse ip de l'utilisateur]{.mark}*
+La collecte et le traitement de ces données répond aux finalités suivantes :
 
-*[-la validation d'une présence à un événement par la confirmation du
-QrCode]{.mark}*
+-   Connexion unique pour réserver ses places et accéder à
+    l'application.
 
-La collecte et le traitement de ces données répond à la (aux)
-finalité(s) suivante(s) :
+-   Gestion des événements et des inscriptions, permettant aux organisateurs de créer et modifier leurs événements, et aux utilisateurs de s’inscrire et de participer à ces événements.
 
--   *Connexion unique pour réserver ses places et accéder à
-    l'application.*
+- Envoi de notifications liées aux événements auxquels l'utilisateur s'est inscrit, notamment pour l'ouverture de la billetterie.
 
--   *[Établir la légitimité du présence à un évènement.]{.mark}*
+**Article 3.2 : Stockage**
 
-*exemple : gestion de contrat, gestion de l'espace client, suivi de la
-qualité des services, envoi de newsletter, etc.*
+Les données sont conservées tant que le compte utilisateur est actif sur l'application. En cas de suppression du compte, les données personnelles sont supprimées dans un délai raisonnable, sous réserve des obligations légales de conservation applicables.
 
-**Article 3.2 : Mode de collecte des données**
+**Article 3.3 : Partage des données**
 
-Lorsque vous utilisez notre site, sont automatiquement collectées les
-données suivantes :
+Les données personnelles ne sont ni vendues ni communiquées à des tiers à des fins commerciales. Elles peuvent être hébergées et traitées par les prestataires techniques nécessaires au fonctionnement de l'application, notamment Firebase.   
+Les données nécessaires à la gestion des événements peuvent être rendues accessibles aux organisateurs des événements concernés afin de permettre la gestion des inscriptions et la validation de la présence des participants.  
 
--   [L'adresse ip]{.mark}
+**Article 3.4 : Responsable du traitement**
+Charles Massuard est responsable du traitement des données personnelles collectées dans le cadre de l'utilisation de l'application Buckshot. 
+Contact : charlesmassuard.dev@gmail.com
 
-D'autres données personnelles sont collectées lorsque vous effectuez les
-opérations suivantes sur la plateforme :
+**Article 4 : Droits des utilisateurs**
 
-*\[Lister les données personnelles collectées, et préciser la finalité
-de la collecte\]*
+Conformément au RGPD, vous pouvez demander l’accès, la modification ou la suppression de vos données. 
+Pour toute demande : charlesmassuard.dev@gmail.com  
+Depuis la page "Mon Profil", vous pouvez également supprimer votre compte, ce qui entraînera la suppression de toutes vos données personnelles. 
+Les utilisateurs disposent également d'un droit à la limitation du traitement, d'un droit d'opposition et d'un droit à la portabilité de leurs données, dans les conditions prévues par le RGPD. 
+Si vous estimez, après nous avoir contactés, que vos droits relatifs à vos données personnelles ne sont pas respectés, vous pouvez adresser une réclamation à la Commission Nationale de l'Informatique et des Libertés (CNIL).
 
-Elles sont conservées par le responsable du traitement dans des
-conditions raisonnables de sécurité, pour une durée de : *\[Indiquer la
-durée de conservation prévue\]*
+**Article 5 : Cookies**
 
-La société est susceptible de conserver certaines données à caractère
-personnel au-delà des délais annoncés ci-dessus afin de remplir ses
-obligations légales ou réglementaires.
+L'application n'utilise pas de cookies à des fins publicitaires ou de suivi. Certains cookies techniques peuvent être nécessaires au bon fonctionnement du service.
 
-**Article 3.3 : Hébergement des données**
-
-Le site *\[nom du site web\]* est hébergé par :
-
-\[*Dénomination sociale de l'entreprise*
-
-*Adresse du siège social*
-
-*Contact (adresse email et/ou numéro de téléphone)*\]
-
-\[Dans le cas ou les données personnelles collectées par l'entreprise
-seraient partagées avec des tiers, insérer une clause "Article 3.4 :
-Transmission des données à des tiers" :
-
-"Les données peuvent être transmises à nos partenaires, ci-après
-énumérés :"\]
-
-\[Si le site est concerné par l'utilisation de cookies, préciser leur
-utilisation dans un **Article 3.5 : Politique en matière de
-"cookies"**\]
-
-ARTICLE 4 : RESPONSABLE DU TRAITEMENT DES DONNÉES ET DÉLÉGUÉ À LA
-PROTECTION DES DONNÉES
-
-**Article 4.1 : Le responsable du traitement des données**
-
-Les données à caractère personnelles sont collectées par \[*raison ou
-dénomination sociale de l'entreprise*\], \[*forme juridique*\] au
-capital de \[*montant du capital social*\], dont le numéro
-d'immatriculation est le \[*indiquez votre numéro RCS*\].
-
-Le responsable du traitement des données à caractère personnel peut être
-contacté de la manière suivante :
-
-Par courrier à l'adresse : 9, avenue Norman, Dos SantosBourg, 42377 ;
-
-Par téléphone, au +33 6 98 45 46 80 ;
-
-Par mail : [alfred842@protonmail.com](http://alfred842@protonmail.com) .
-
-**Article 4.2 : Le délégué à la protection des données**
-
-Le délégué à la protection des données de l'entreprise ou du responsable
-est :
-
-*Dr . Wissqock*
-
-Si vous estimez, après nous avoir contactés, que vos droits
-"Informatique et Libertés", ne sont pas respectés, vous pouvez adresser
-une information à la CNIL.
-
-ARTICLE 5 : LES DROITS DE L'UTILISATEUR EN MATIÈRE DE COLLECTE ET DE
-TRAITEMENT DES DONNÉES
-
-Tout utilisateur concerné par le traitement de ses données personnelles
-peut se prévaloir des droits suivants, en application du règlement
-européen 2016/679 et de la Loi Informatique et Liberté (Loi 78-17 du 6
-janvier 1978) :
-
--   Droit d'accès, de rectification et droit à l'effacement des données
-    (posés respectivement aux articles 15, 16 et 17 du RGPD) ;
-
--   Droit à la portabilité des données (article 20 du RGPD) ;
-
--   Droit à la limitation (article 18 du RGPD) et à l'opposition du
-    traitement des données (article 21 du RGPD) ;
-
--   Droit de ne pas faire l'objet d'une décision fondée exclusivement
-    sur un procédé automatisé ;
-
--   Droit de déterminer le sort des données après la mort ;
-
--   Droit de saisir l'autorité de contrôle compétente (article 77 du
-    RGPD).
-
-Afin que le responsable du traitement des données puisse faire droit à
-sa demande, l'utilisateur peut être tenu de lui communiquer certaines
-informations telles que : ses noms et prénoms, son adresse e-mail ainsi
-que son numéro de compte, d'espace personnel ou d'abonné.
-
-Consultez le site cnil.fr pour plus d'informations sur vos droits.
-
-**ARTICLE 6 : CONDITIONS DE MODIFICATION DE LA POLITIQUE DE
-CONFIDENTIALITÉ**
-
-L'éditeur de l'application Buckshot se réserve le droit de pouvoir
-modifier la présente Politique à tout moment afin d'assurer aux
-utilisateurs du site sa conformité avec le droit en vigueur.
-
-Les éventuelles modifications ne sauraient avoir d'incidence sur les
-achats antérieurement effectués sur le site, lesquels restent soumis à
-la Politique en vigueur au moment de l'achat et telle qu'acceptée par
-l'utilisateur lors de la validation de l'achat.
-
-L'utilisateur est invité à prendre connaissance de cette Politique à
-chaque fois qu'il utilise nos services, sans qu'il soit nécessaire de
-l'en prévenir formellement.
-
-La présente politique, éditée le 21/05/2026.

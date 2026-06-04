@@ -631,7 +631,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                     MaterialPageRoute(
                                       builder: (context) => ManageEventView(
                                         eventId: widget.eventId,
-                                        eventData: widget.eventData,
+                                        eventData: widget.eventData ?? {},
                                       ),
                                     ),
                                   );

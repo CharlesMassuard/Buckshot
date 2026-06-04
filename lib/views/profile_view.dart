@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -41,14 +43,10 @@ class _ProfileViewState extends State<ProfileView> {
   void initState() {
     super.initState();
     _mentionsLegalesRecognizer = TapGestureRecognizer()
-      ..onTap = () {
-        _showSnackBar("Ouverture des mentions légales...", isSuccess: true);
-      };
+      ..onTap = () => _showMarkdownDialog(context, 'Mentions légales', 'assets/markdown/mentions_legales.md');
 
     _politiqueConfidentialiteRecognizer = TapGestureRecognizer()
-      ..onTap = () {
-        _showSnackBar("Ouverture de la politique de confidentialité...", isSuccess: true);
-      };
+      ..onTap = () => _showMarkdownDialog(context, 'Politique de confidentialité', 'assets/markdown/privacy_politique.md');
   }
 
   @override
@@ -63,6 +61,51 @@ class _ProfileViewState extends State<ProfileView> {
     _mentionsLegalesRecognizer.dispose();
     _politiqueConfidentialiteRecognizer.dispose();
     super.dispose();
+  }
+
+  void _showMarkdownDialog(BuildContext context, String title, String assetPath) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: FutureBuilder<String>(
+              future: rootBundle.loadString(assetPath),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
+                }
+                if (snapshot.hasError) {
+                  return const Text('Erreur lors du chargement du fichier', style: TextStyle(color: Colors.white));
+                }
+                
+                return SingleChildScrollView(
+                  child: MarkdownBody(
+                    data: snapshot.data ?? 'Fichier vide',
+                    styleSheet: MarkdownStyleSheet.fromTheme(theme).copyWith(
+                      p: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5),
+                      h1: TextStyle(color: theme.colorScheme.secondary, fontWeight: FontWeight.bold, fontSize: 20),
+                      h2: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      listBullet: const TextStyle(color: Color(0xFF9D4EDD)),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fermer', style: TextStyle(color: Color(0xFF9D4EDD), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _signOut() async {
@@ -445,7 +488,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Text.rich(
       TextSpan(
         text: 'En utilisant notre application, vous acceptez nos \n',
-        style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 11),
+        style: GoogleFonts.jura(color: Colors.grey[400], fontSize: 11, height: 1.4),
         children: [
           TextSpan(
             text: 'mentions légales',
@@ -835,6 +878,7 @@ class _ProfileViewState extends State<ProfileView> {
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 title: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Expanded(
                                       child: Text(

@@ -7,8 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 
-import 'package:buckshot/buckshot_theme.dart';
-
 class EditEventView extends StatefulWidget {
   final String eventId;
   final Map<String, dynamic> eventData;
