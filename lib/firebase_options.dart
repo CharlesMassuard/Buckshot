@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '443286525719',
     projectId: 'buckshot-a9242',
     storageBucket: 'buckshot-a9242.firebasestorage.app',
+    androidClientId: '443286525719-4i92jgs85haqm4aavevl9l649uh3odsc.apps.googleusercontent.com',
+    iosClientId: '443286525719-fhl1cniq982cb0k6n37au7dl45nce3q8.apps.googleusercontent.com',
     iosBundleId: 'com.shotgun.buckshot',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '443286525719',
     projectId: 'buckshot-a9242',
     storageBucket: 'buckshot-a9242.firebasestorage.app',
+    androidClientId: '443286525719-4i92jgs85haqm4aavevl9l649uh3odsc.apps.googleusercontent.com',
+    iosClientId: '443286525719-fhl1cniq982cb0k6n37au7dl45nce3q8.apps.googleusercontent.com',
     iosBundleId: 'com.shotgun.buckshot',
   );
 
@@ -85,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'buckshot-a9242.firebasestorage.app',
     measurementId: 'G-DCYQEE65V3',
   );
+
 }
