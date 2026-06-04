@@ -346,8 +346,8 @@ class _HomeContent extends StatelessWidget {
                           )
                         : _buildHorizontalEventList(noveltyDocs),
 
-                    // --- 5. Les prochains shotgun ---
-                    _buildSectionTitle(context, 'Les prochains shotgun'),
+                    // --- 5. Les prochains shotguns ---
+                    _buildSectionTitle(context, 'Les prochains shotguns'),
                     upcomingShotgunDocs.isEmpty
                         ? const Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
