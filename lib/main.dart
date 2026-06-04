@@ -13,17 +13,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
 
-  await NotificationService().initNotification(
-    onNotificationClick: (String? eventId) {
-      if (eventId != null && eventId.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _performSecureNavigation(eventId);
-        });
-      }
-    },
-  );
-  await NotificationService().checkExactAlarmPermission();
-
   bool firebaseInitialized = false;
 
   try {
@@ -35,7 +24,22 @@ void main() async {
     debugPrint('Firebase non initialisé (ex: si Anton lance sur Linux desktop XD ): $e');
     firebaseInitialized = false;
   }
-  
+
+  try {
+    await NotificationService().initNotification(
+      onNotificationClick: (String? eventId) {
+        if (eventId != null && eventId.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _performSecureNavigation(eventId);
+          });
+        }
+      },
+    );
+    await NotificationService().checkExactAlarmPermission();
+  } catch (e) {
+    debugPrint('Erreur lors de l\'initialisation des notifications : $e');
+  }
+
   runApp(MyApp(isFirebaseReady: firebaseInitialized));
 }
 
