@@ -359,94 +359,104 @@ class _EventDetailViewState extends State<EventDetailView> {
 
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0B0914),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('events').doc(widget.eventId).snapshots(),
-        builder: (context, eventSnapshot) {
-          if (eventSnapshot.connectionState == ConnectionState.waiting && widget.eventData == null) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD)));
-          }
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('events').doc(widget.eventId).snapshots(),
+      builder: (context, eventSnapshot) {
+        if (eventSnapshot.connectionState == ConnectionState.waiting && widget.eventData == null) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF0B0914),
+            body: Center(child: CircularProgressIndicator(color: Color(0xFF9D4EDD))),
+          );
+        }
 
-          Map<String, dynamic> activeData = {};
-          if (widget.eventData != null) {
-            activeData.addAll(widget.eventData!);
-          }
-          if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
-            activeData.addAll(eventSnapshot.data!.data() as Map<String, dynamic>);
-          }
+        Map<String, dynamic> activeData = {};
+        if (widget.eventData != null) {
+          activeData.addAll(widget.eventData!);
+        }
+        if (eventSnapshot.hasData && eventSnapshot.data!.exists) {
+          activeData.addAll(eventSnapshot.data!.data() as Map<String, dynamic>);
+        }
 
-          if (activeData.isEmpty) {
-            return Scaffold(
-              backgroundColor: const Color(0xFF0B0914),
-              appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), onPressed: () => Navigator.pop(context))),
-              body: Center(child: Text("Impossible de charger l'événement 😢", style: GoogleFonts.jura(color: Colors.white, fontSize: 16))),
-            );
-          }
+        if (activeData.isEmpty) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF0B0914),
+            appBar: AppBar(
+              backgroundColor: Colors.transparent, 
+              elevation: 0, 
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white), 
+                onPressed: () => Navigator.pop(context)
+              )
+            ),
+            body: Center(child: Text("Impossible de charger l'événement 😢", style: GoogleFonts.jura(color: Colors.white, fontSize: 16))),
+          );
+        }
 
-          final title = activeData['nom'] ?? 'Événement';
-          final description = activeData['description'] ?? 'Aucune description.';
-          final lieu = activeData['lieu'] ?? 'Lieu non spécifié';
-          final idOrganisateur = activeData['idOrganisateur'] ?? '';
-          final capaciteMax = activeData['capaciteMax'] ?? 0;
-          final int placesRestantes = activeData['placesRestantes'] ?? 0;
-          final Timestamp? dateHeure = activeData['dateHeureEvent'] as Timestamp?;
-          final Timestamp? dateOuvertureBilletterie = activeData['dateOuvertureBilletterie'] as Timestamp?;
-          final Timestamp? dateFinEvent = activeData['dateFinEvent'] as Timestamp?;
-          final String eventImageBase64 = activeData['image'] ?? '';
+        final title = activeData['nom'] ?? 'Événement';
+        final description = activeData['description'] ?? 'Aucune description.';
+        final lieu = activeData['lieu'] ?? 'Lieu non spécifié';
+        final idOrganisateur = activeData['idOrganisateur'] ?? '';
+        final capaciteMax = activeData['capaciteMax'] ?? 0;
+        final int placesRestantes = activeData['placesRestantes'] ?? 0;
+        final Timestamp? dateHeure = activeData['dateHeureEvent'] as Timestamp?;
+        final Timestamp? dateOuvertureBilletterie = activeData['dateOuvertureBilletterie'] as Timestamp?;
+        final Timestamp? dateFinEvent = activeData['dateFinEvent'] as Timestamp?;
+        final String eventImageBase64 = activeData['image'] ?? '';
 
-          final now = DateTime.now();
-          final bool isPast = dateHeure != null && dateHeure.toDate().isBefore(now);
-          final bool noPlacesLeft = placesRestantes <= 0;
-          final bool isBilletterieLocked = dateOuvertureBilletterie != null && dateOuvertureBilletterie.toDate().isAfter(now);
-          final bool isMyOwnOrganisedEvent = (_userRole == 'ORGANISATEUR' && _useridOrganisateur == idOrganisateur);
+        final now = DateTime.now();
+        final bool isPast = dateHeure != null && dateHeure.toDate().isBefore(now);
+        final bool noPlacesLeft = placesRestantes <= 0;
+        final bool isBilletterieLocked = dateOuvertureBilletterie != null && dateOuvertureBilletterie.toDate().isAfter(now);
+        final bool isMyOwnOrganisedEvent = (_userRole == 'ORGANISATEUR' && _useridOrganisateur == idOrganisateur);
 
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('billets')
-                .where('userId', isEqualTo: currentUser?.uid)
-                .where('eventId', isEqualTo: widget.eventId)
-                .snapshots(),
-            builder: (context, billetSnapshot) {
-              final bool hasTicket = billetSnapshot.hasData && billetSnapshot.data!.docs.isNotEmpty;
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('billets')
+              .where('userId', isEqualTo: currentUser?.uid)
+              .where('eventId', isEqualTo: widget.eventId)
+              .snapshots(),
+          builder: (context, billetSnapshot) {
+            final bool hasTicket = billetSnapshot.hasData && billetSnapshot.data!.docs.isNotEmpty;
 
-              return StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('reminders')
-                    .doc("${currentUser?.uid}_${widget.eventId}")
-                    .snapshots(),
-                builder: (context, reminderSnapshot) {
-                  final bool hasReminder = reminderSnapshot.hasData && reminderSnapshot.data!.exists;
+            return StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('reminders')
+                  .doc("${currentUser?.uid}_${widget.eventId}")
+                  .snapshots(),
+              builder: (context, reminderSnapshot) {
+                final bool hasReminder = reminderSnapshot.hasData && reminderSnapshot.data!.exists;
 
-                  String buttonText = "M'INSCRIRE";
-                  bool isButtonEnabled = true;
-                  IconData buttonIcon = Icons.local_activity_outlined;
+                String buttonText = "M'INSCRIRE";
+                bool isButtonEnabled = true;
+                IconData buttonIcon = Icons.local_activity_outlined;
 
-                  if (isMyOwnOrganisedEvent) {
-                    buttonText = "GÉRER MON ÉVÉNEMENT";
+                if (isMyOwnOrganisedEvent) {
+                  buttonText = "GÉRER MON ÉVÉNEMENT";
+                  isButtonEnabled = true;
+                  buttonIcon = Icons.admin_panel_settings_outlined;
+                } else if (hasTicket) {
+                  buttonText = "INSCRIT ! Place réservée 🎫";
+                  isButtonEnabled = false;
+                } else if (isPast) {
+                  buttonText = _getPastMessage(title);
+                  isButtonEnabled = false;
+                } else if (isBilletterieLocked) {
+                  if (hasReminder) {
+                    buttonText = _getNotificationMessage(title);
+                    isButtonEnabled = false;
+                  } else {
+                    buttonText = "RECEVOIR UNE NOTIFICATION";
                     isButtonEnabled = true;
-                    buttonIcon = Icons.admin_panel_settings_outlined;
-                  } else if (hasTicket) {
-                    buttonText = "INSCRIT ! Place réservée 🎫";
-                    isButtonEnabled = false;
-                  } else if (isPast) {
-                    buttonText = _getPastMessage(title);
-                    isButtonEnabled = false;
-                  } else if (isBilletterieLocked) {
-                    if (hasReminder) {
-                      buttonText = _getNotificationMessage(title);
-                      isButtonEnabled = false;
-                    } else {
-                      buttonText = "RECEVOIR UNE NOTIFICATION";
-                      isButtonEnabled = true;
-                      buttonIcon = Icons.notifications_active_outlined;
-                    }
-                  } else if (noPlacesLeft) {
-                    buttonText = _getFullMessage(title, capaciteMax);
-                    isButtonEnabled = false;
+                    buttonIcon = Icons.notifications_active_outlined;
                   }
+                } else if (noPlacesLeft) {
+                  buttonText = _getFullMessage(title, capaciteMax);
+                  isButtonEnabled = false;
+                }
 
-                  return Stack(
+                return Scaffold(
+                  backgroundColor: const Color(0xFF0B0914),
+                  body: Stack(
                     children: [
                       SingleChildScrollView(
                         child: Column(
@@ -558,7 +568,7 @@ class _EventDetailViewState extends State<EventDetailView> {
                                       color: noPlacesLeft ? Colors.redAccent : Colors.white,
                                     ),
                                   ),
-                                  const SizedBox(height: 180),
+                                  const SizedBox(height: 20),
                                 ],
                               ),
                             ),
@@ -599,145 +609,152 @@ class _EventDetailViewState extends State<EventDetailView> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 20,
-                        right: 20,
-                        bottom: 20,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (isBilletterieLocked && !isMyOwnOrganisedEvent) ...[
-                              Text(
-                                "Ouverture shotgun le\n${_formatSimpleDate(dateOuvertureBilletterie)}",
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.jura(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-
-                            isButtonEnabled
-                                ? ElevatedButton.icon(
-                              onPressed: _isProcessing
-                                  ? null
-                                  : () {
-                                if (isMyOwnOrganisedEvent) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ManageEventView(
-                                        eventId: widget.eventId,
-                                        eventData: widget.eventData ?? {},
-                                      ),
-                                    ),
-                                  );
-                                } else if (isBilletterieLocked) {
-                                  _toggleRappel(widget.eventId, title, dateOuvertureBilletterie, hasReminder);
-                                } else {
-                                  _reserverPlace(widget.eventId);
-                                }
-                              },
-                              icon: _isProcessing
-                                  ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                              )
-                                  : Icon(
-                                buttonIcon,
-                                size: 28,
-                              ),
-                              label: Text(
-                                _isProcessing ? "CHARGEMENT..." : buttonText,
-                                style: GoogleFonts.jura(
-                                  fontSize: (isMyOwnOrganisedEvent) ? 18 : 22,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isMyOwnOrganisedEvent ? const Color(0xFF4EA8DE) : const Color(0xFF9D4EDD),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                minimumSize: const Size.fromHeight(56),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                elevation: 6,
-                              ),
-                            )
-                                : Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: hasTicket
-                                    ? const Color(0xFF2EC4B6).withOpacity(0.2)
-                                    : (hasReminder ? const Color(0xFF9D4EDD).withOpacity(0.15) : Colors.grey[900]),
-                                borderRadius: BorderRadius.circular(15),
-                                border: Border.all(
-                                    color: hasTicket
-                                        ? const Color(0xFF2EC4B6)
-                                        : (hasReminder ? const Color(0xFF9D4EDD) : Colors.transparent),
-                                    width: 1.5
-                                ),
-                              ),
-                              child: Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                  child: Text(
-                                    buttonText,
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.jura(
-                                      color: hasTicket
-                                          ? const Color(0xFF2EC4B6)
-                                          : (hasReminder ? const Color(0xFFB776EE) : Colors.grey[500]),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                    ],
+                  ),
+                  bottomNavigationBar: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 20.0, right: 20.0, bottom: 24.0, top: 10.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isBilletterieLocked && !isMyOwnOrganisedEvent) ...[
+                            Text(
+                              "Ouverture shotgun le ${_formatSimpleDate(dateOuvertureBilletterie)}",
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.jura(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-
-                            if (hasTicket && !isMyOwnOrganisedEvent) ...[
-                              const SizedBox(height: 12),
-                              TextButton.icon(
-                                onPressed: _isProcessing ? null : () => _seDesinscrire(widget.eventId),
-                                icon: _isProcessing
-                                    ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2)
+                            const SizedBox(height: 12),
+                          ],
+                          isButtonEnabled
+                              ? ElevatedButton.icon(
+                                  onPressed: _isProcessing
+                                      ? null
+                                      : () {
+                                          if (isMyOwnOrganisedEvent) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => ManageEventView(
+                                                  eventId: widget.eventId,
+                                                  eventData: widget.eventData ?? {},
+                                                ),
+                                              ),
+                                            );
+                                          } else if (isBilletterieLocked) {
+                                            _toggleRappel(widget.eventId, title, dateOuvertureBilletterie, hasReminder);
+                                          } else {
+                                            _reserverPlace(widget.eventId);
+                                          }
+                                        },
+                                  icon: _isProcessing
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        )
+                                      : Icon(
+                                          buttonIcon,
+                                          size: 28,
+                                        ),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      _isProcessing ? "CHARGEMENT..." : buttonText,
+                                      maxLines: 1,
+                                      style: GoogleFonts.jura(
+                                        fontSize: (isMyOwnOrganisedEvent) ? 18 : 22,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isMyOwnOrganisedEvent ? const Color(0xFF4EA8DE) : const Color(0xFF9D4EDD),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                                    minimumSize: const Size.fromHeight(56),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    elevation: 6,
+                                  ),
                                 )
-                                    : const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 20),
-                                label: Text(
-                                  _isProcessing ? "TRAITEMENT..." : "Se désinscrire de l'événement",
-                                  style: GoogleFonts.jura(
-                                    color: Colors.redAccent,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
+                              : Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: hasTicket
+                                        ? const Color(0xFF2EC4B6).withOpacity(0.2)
+                                        : (hasReminder ? const Color(0xFF9D4EDD).withOpacity(0.2) : Colors.grey[900]),
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(
+                                      color: hasTicket
+                                          ? const Color(0xFF2EC4B6)
+                                          : (hasReminder ? const Color(0xFF9D4EDD) : Colors.transparent),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          buttonText,
+                                          maxLines: 1,
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.jura(
+                                            color: hasTicket
+                                                ? const Color(0xFF2EC4B6)
+                                                : (hasReminder ? const Color(0xFFB776EE) : Colors.grey[500]),
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                          if (hasTicket && !isMyOwnOrganisedEvent) ...[
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: _isProcessing ? null : () => _seDesinscrire(widget.eventId),
+                              icon: _isProcessing
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(color: Colors.redAccent, strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 20),
+                              label: Text(
+                                _isProcessing ? "TRAITEMENT..." : "Se désinscrire de l'événement",
+                                style: GoogleFonts.jura(
+                                  color: Colors.redAccent,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ],
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
                           ],
-                        ),
+                        ],
                       ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
-        },
-      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
