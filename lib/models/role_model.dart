@@ -1,5 +1,5 @@
 enum Role {
-  ETUDIANT,
+  USER,
   STAFF,
   ORGANISATEUR,
   ADMIN,
