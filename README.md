@@ -244,6 +244,7 @@ Avant d'ajouter une fonctionnalite:
 ## Documentation
 
 - [Documentation technique exhaustive](docs/architecture_technique.md)
+- [Documentation utilisateur](docs/documentation_utilisateur.md)
 
 ## Licence et diffusion
 
